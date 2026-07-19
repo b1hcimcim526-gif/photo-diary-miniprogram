@@ -78,6 +78,7 @@ let currentRecordDate = todayStr();
 const photoCarousel = document.getElementById("photo-carousel");
 const photoInput = document.getElementById("photo-input");
 const entryForm = document.getElementById("entry-form");
+const btnAddPhoto = document.getElementById("btn-add-photo");
 
 function openRecord(dateStr) {
   currentRecordDate = dateStr;
@@ -99,19 +100,15 @@ document.getElementById("btn-open-calendar-picker").addEventListener("click", ()
 
 function renderPhotoCarousel(scrollToEnd) {
   photoCarousel.innerHTML = "";
+  btnAddPhoto.hidden = pendingPhotos.length >= MAX_PHOTOS;
 
   if (pendingPhotos.length === 0) {
-    photoCarousel.classList.add("empty");
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "empty-add-btn";
-    addBtn.textContent = "+";
-    addBtn.addEventListener("click", () => photoInput.click());
-    photoCarousel.appendChild(addBtn);
+    const blank = document.createElement("div");
+    blank.className = "photo-card blank";
+    photoCarousel.appendChild(blank);
     return;
   }
 
-  photoCarousel.classList.remove("empty");
   pendingPhotos.forEach((src, index) => {
     const card = document.createElement("div");
     card.className = "photo-card";
@@ -130,19 +127,12 @@ function renderPhotoCarousel(scrollToEnd) {
     photoCarousel.appendChild(card);
   });
 
-  if (pendingPhotos.length < MAX_PHOTOS) {
-    const addCard = document.createElement("button");
-    addCard.type = "button";
-    addCard.className = "photo-card add-card";
-    addCard.textContent = "+";
-    addCard.addEventListener("click", () => photoInput.click());
-    photoCarousel.appendChild(addCard);
-  }
-
   if (scrollToEnd) {
     photoCarousel.scrollTo({ left: photoCarousel.scrollWidth, behavior: "smooth" });
   }
 }
+
+btnAddPhoto.addEventListener("click", () => photoInput.click());
 
 photoInput.addEventListener("change", () => {
   const file = photoInput.files[0];

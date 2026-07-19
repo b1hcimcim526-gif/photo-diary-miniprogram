@@ -96,12 +96,12 @@ body {
 }
 
 .icon-btn {
-  background: none;
+  background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 999px;
   color: var(--accent-dark);
   font-size: 16px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   cursor: pointer;
 }
 
@@ -118,32 +118,16 @@ body {
   gap: 12px;
 }
 
+.photo-stage {
+  position: relative;
+}
+
 .photo-carousel {
   display: flex;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   gap: 12px;
   border-radius: 14px;
-}
-
-.photo-carousel.empty {
-  overflow: visible;
-  padding-top: 8px;
-}
-
-.empty-add-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 2px dashed var(--border);
-  color: var(--muted);
-  font-size: 22px;
-  cursor: pointer;
-  background: var(--card-bg);
-  font-family: inherit;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .photo-card {
@@ -156,6 +140,10 @@ body {
   background: var(--card-bg);
 }
 
+.photo-card.blank {
+  border: 1px solid var(--border);
+}
+
 .photo-card img {
   width: 100%;
   height: 100%;
@@ -163,15 +151,25 @@ body {
   display: block;
 }
 
-.photo-card.add-card {
-  border: 2px dashed var(--border);
-  color: var(--muted);
-  font-size: 48px;
+.fab-add {
+  position: absolute;
+  top: 50%;
+  right: -10px;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: inherit;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.fab-add[hidden] {
+  display: none;
 }
 
 .photo-remove {

@@ -12,10 +12,13 @@ const views = {
 const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
+const MAX_PHOTOS = 9;
+
 let pendingPhotos = [];
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
 let detailDate = null;
+let calendarOrigin = "diary"; // "diary" | "record" — controls what tapping a calendar day does
 
 function todayStr() {
   return formatISO(new Date());
@@ -74,7 +77,7 @@ navItems.forEach((btn) => {
 
 // ---------- 记录页 ----------
 const recordDateInput = document.getElementById("record-date");
-const photoGrid = document.getElementById("photo-grid");
+const photoCarousel = document.getElementById("photo-carousel");
 const photoInput = document.getElementById("photo-input");
 const textInput = document.getElementById("text-input");
 const entryForm = document.getElementById("entry-form");
@@ -90,19 +93,25 @@ function loadRecordForm(dateStr) {
   const entry = entries[dateStr];
   pendingPhotos = entry ? [...entry.photos] : [];
   textInput.value = entry ? entry.text : "";
-  renderPhotoGrid();
+  renderPhotoCarousel();
 }
 
 recordDateInput.addEventListener("change", () => {
   loadRecordForm(recordDateInput.value);
 });
 
-function renderPhotoGrid() {
-  photoGrid.querySelectorAll(".photo-thumb").forEach((el) => el.remove());
-  const addLabel = photoGrid.querySelector(".photo-add");
+document.getElementById("btn-open-calendar-picker").addEventListener("click", () => {
+  calendarOrigin = "record";
+  renderCalendar();
+  showView("diary-calendar");
+});
+
+function renderPhotoCarousel(scrollToEnd) {
+  photoCarousel.innerHTML = "";
+
   pendingPhotos.forEach((src, index) => {
-    const wrap = document.createElement("div");
-    wrap.className = "photo-thumb";
+    const card = document.createElement("div");
+    card.className = "photo-card";
     const img = document.createElement("img");
     img.src = src;
     const removeBtn = document.createElement("button");
@@ -111,30 +120,37 @@ function renderPhotoGrid() {
     removeBtn.textContent = "×";
     removeBtn.addEventListener("click", () => {
       pendingPhotos.splice(index, 1);
-      renderPhotoGrid();
+      renderPhotoCarousel();
     });
-    wrap.appendChild(img);
-    wrap.appendChild(removeBtn);
-    photoGrid.insertBefore(wrap, addLabel);
+    card.appendChild(img);
+    card.appendChild(removeBtn);
+    photoCarousel.appendChild(card);
   });
+
+  if (pendingPhotos.length < MAX_PHOTOS) {
+    const addCard = document.createElement("button");
+    addCard.type = "button";
+    addCard.className = "photo-card add-card";
+    addCard.textContent = "+";
+    addCard.addEventListener("click", () => photoInput.click());
+    photoCarousel.appendChild(addCard);
+  }
+
+  if (scrollToEnd) {
+    photoCarousel.scrollTo({ left: photoCarousel.scrollWidth, behavior: "smooth" });
+  }
 }
 
 photoInput.addEventListener("change", () => {
-  const files = Array.from(photoInput.files);
-  let remaining = files.length;
-  if (!remaining) return;
-  files.forEach((file) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      pendingPhotos.push(reader.result);
-      remaining -= 1;
-      if (remaining === 0) {
-        renderPhotoGrid();
-        photoInput.value = "";
-      }
-    };
-    reader.readAsDataURL(file);
-  });
+  const file = photoInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingPhotos.push(reader.result);
+    renderPhotoCarousel(true);
+    photoInput.value = "";
+  };
+  reader.readAsDataURL(file);
 });
 
 entryForm.addEventListener("submit", (event) => {
@@ -202,6 +218,7 @@ function formatDateLabel(dateStr) {
 }
 
 document.getElementById("btn-switch-calendar").addEventListener("click", () => {
+  calendarOrigin = "diary";
   renderCalendar();
   showView("diary-calendar");
 });
@@ -243,7 +260,9 @@ function renderCalendar() {
     cell.appendChild(dayLabel);
 
     cell.addEventListener("click", () => {
-      if (entry) {
+      if (calendarOrigin === "record") {
+        openRecord(dateStr);
+      } else if (entry) {
         openDayDetail(dateStr);
       } else {
         openRecord(dateStr);

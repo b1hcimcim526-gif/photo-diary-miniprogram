@@ -21,16 +21,15 @@
     <!-- 记录页 -->
     <section id="view-record" class="view">
       <header class="page-header">
-        <span class="page-title">记录今天</span>
-        <input type="date" id="record-date" class="date-input" />
+        <span class="page-title">记录</span>
+        <div class="header-actions">
+          <input type="date" id="record-date" class="date-input" />
+          <button type="button" class="icon-btn" id="btn-open-calendar-picker" title="选择过去的日子记录">📅</button>
+        </div>
       </header>
       <form id="entry-form" class="entry-form">
-        <div class="photo-grid" id="photo-grid">
-          <label class="photo-add" for="photo-input">
-            <span>+</span>
-          </label>
-          <input type="file" id="photo-input" accept="image/*" multiple hidden />
-        </div>
+        <div class="photo-carousel" id="photo-carousel"></div>
+        <input type="file" id="photo-input" accept="image/*" hidden />
         <textarea id="text-input" placeholder="今天发生了什么..." rows="4"></textarea>
         <button type="submit" class="hand-btn">保存</button>
       </form>

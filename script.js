@@ -74,13 +74,13 @@ navItems.forEach((btn) => {
 });
 
 // ---------- 记录页 ----------
-const recordDateInput = document.getElementById("record-date");
+let currentRecordDate = todayStr();
 const photoCarousel = document.getElementById("photo-carousel");
 const photoInput = document.getElementById("photo-input");
 const entryForm = document.getElementById("entry-form");
 
 function openRecord(dateStr) {
-  recordDateInput.value = dateStr;
+  currentRecordDate = dateStr;
   loadRecordForm(dateStr);
   showView("record");
 }
@@ -91,10 +91,6 @@ function loadRecordForm(dateStr) {
   pendingPhotos = entry ? [...entry.photos] : [];
   renderPhotoCarousel();
 }
-
-recordDateInput.addEventListener("change", () => {
-  loadRecordForm(recordDateInput.value);
-});
 
 document.getElementById("btn-open-calendar-picker").addEventListener("click", () => {
   renderCalendar();
@@ -162,11 +158,10 @@ photoInput.addEventListener("change", () => {
 
 entryForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const dateStr = recordDateInput.value || todayStr();
   if (pendingPhotos.length === 0) return;
 
   const entries = loadEntries();
-  entries[dateStr] = { photos: [...pendingPhotos] };
+  entries[currentRecordDate] = { photos: [...pendingPhotos] };
   saveEntries(entries);
 });
 

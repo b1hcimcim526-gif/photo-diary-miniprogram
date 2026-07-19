@@ -1,4 +1,4 @@
-const STORAGE_KEY = "plog-entries"; // { "YYYY-MM-DD": { text, photos: [dataURL,...] } }
+const STORAGE_KEY = "plog-entries"; // { "YYYY-MM-DD": { photos: [dataURL,...] } }
 const ONBOARD_KEY = "plog-onboarded";
 
 const views = {
@@ -79,7 +79,6 @@ navItems.forEach((btn) => {
 const recordDateInput = document.getElementById("record-date");
 const photoCarousel = document.getElementById("photo-carousel");
 const photoInput = document.getElementById("photo-input");
-const textInput = document.getElementById("text-input");
 const entryForm = document.getElementById("entry-form");
 
 function openRecord(dateStr) {
@@ -92,7 +91,6 @@ function loadRecordForm(dateStr) {
   const entries = loadEntries();
   const entry = entries[dateStr];
   pendingPhotos = entry ? [...entry.photos] : [];
-  textInput.value = entry ? entry.text : "";
   renderPhotoCarousel();
 }
 
@@ -156,11 +154,10 @@ photoInput.addEventListener("change", () => {
 entryForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const dateStr = recordDateInput.value || todayStr();
-  const text = textInput.value.trim();
-  if (!text && pendingPhotos.length === 0) return;
+  if (pendingPhotos.length === 0) return;
 
   const entries = loadEntries();
-  entries[dateStr] = { text, photos: [...pendingPhotos] };
+  entries[dateStr] = { photos: [...pendingPhotos] };
   saveEntries(entries);
 
   renderTimeline();
@@ -202,11 +199,6 @@ function renderTimeline() {
       thumb.appendChild(count);
     }
     row.appendChild(thumb);
-
-    const textEl = document.createElement("div");
-    textEl.className = "timeline-text";
-    textEl.textContent = entry.text;
-    row.appendChild(textEl);
 
     timelineList.appendChild(row);
   });
@@ -291,7 +283,6 @@ document.getElementById("btn-switch-list").addEventListener("click", () => {
 // ---------- 单日详情 ----------
 const detailDateLabel = document.getElementById("detail-date-label");
 const detailPhotos = document.getElementById("detail-photos");
-const detailText = document.getElementById("detail-text");
 
 function openDayDetail(dateStr) {
   const entries = loadEntries();
@@ -306,7 +297,6 @@ function openDayDetail(dateStr) {
     img.src = src;
     detailPhotos.appendChild(img);
   });
-  detailText.textContent = entry.text;
   showView("day-detail");
 }
 

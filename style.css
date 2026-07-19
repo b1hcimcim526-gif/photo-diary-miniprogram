@@ -185,22 +185,6 @@ body {
   cursor: pointer;
 }
 
-textarea {
-  resize: none;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 14px;
-  font-family: inherit;
-  color: var(--text);
-  background: var(--card-bg);
-}
-
-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
 /* 时间线 */
 .timeline-list {
   display: flex;
@@ -264,16 +248,6 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-}
-
-.timeline-text {
-  font-size: 13px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
 
 .empty-state {
@@ -359,17 +333,6 @@ textarea:focus {
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 10px;
-}
-
-.detail-text {
-  font-size: 14px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
-  min-height: 40px;
 }
 
 /* 底部 Tab */

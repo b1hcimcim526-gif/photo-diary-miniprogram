@@ -6,7 +6,6 @@ const views = {
   record: document.getElementById("view-record"),
   "diary-list": document.getElementById("view-diary-list"),
   "diary-calendar": document.getElementById("view-diary-calendar"),
-  "day-detail": document.getElementById("view-day-detail"),
 };
 
 const bottomNav = document.getElementById("bottom-nav");
@@ -17,7 +16,7 @@ const MAX_PHOTOS = 9;
 let pendingPhotos = [];
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
-let detailDate = null;
+let monthLongImages = {}; // monthKey -> [dataURL, ...] for the current gallery render
 
 function todayStr() {
   return formatISO(new Date());
@@ -58,7 +57,7 @@ document.getElementById("btn-start-record").addEventListener("click", () => {
 
 document.getElementById("btn-browse-diary").addEventListener("click", () => {
   localStorage.setItem(ONBOARD_KEY, "1");
-  renderTimeline();
+  renderMonthGallery();
   showView("diary-list");
 });
 
@@ -68,7 +67,7 @@ navItems.forEach((btn) => {
     const view = btn.dataset.view;
     if (view === "record") openRecord(todayStr());
     if (view === "diary-list") {
-      renderTimeline();
+      renderMonthGallery();
       showView("diary-list");
     }
   });
@@ -170,53 +169,93 @@ entryForm.addEventListener("submit", (event) => {
   entries[dateStr] = { photos: [...pendingPhotos] };
   saveEntries(entries);
 
-  renderTimeline();
+  renderMonthGallery();
   showView("diary-list");
 });
 
-// ---------- 时间线 ----------
-const timelineList = document.getElementById("timeline-list");
-const timelineEmpty = document.getElementById("timeline-empty");
+// ---------- 日记本：按月长图预览 ----------
+const monthGallery = document.getElementById("month-gallery");
+const galleryEmpty = document.getElementById("gallery-empty");
 
-function renderTimeline() {
-  const entries = loadEntries();
-  const dates = Object.keys(entries).sort((a, b) => (a < b ? 1 : -1));
-  timelineList.innerHTML = "";
-  timelineEmpty.hidden = dates.length > 0;
-
-  dates.forEach((dateStr) => {
-    const entry = entries[dateStr];
-    const row = document.createElement("div");
-    row.className = "timeline-row";
-    row.addEventListener("click", () => openDayDetail(dateStr));
-
-    const dateEl = document.createElement("div");
-    dateEl.className = "timeline-date";
-    dateEl.textContent = formatDateLabel(dateStr);
-    row.appendChild(dateEl);
-
-    const thumb = document.createElement("div");
-    thumb.className = "timeline-thumb" + (entry.photos.length <= 1 ? " single" : "");
-    entry.photos.slice(0, 4).forEach((src) => {
-      const img = document.createElement("img");
-      img.src = src;
-      thumb.appendChild(img);
-    });
-    if (entry.photos.length > 0) {
-      const count = document.createElement("span");
-      count.className = "timeline-count";
-      count.textContent = entry.photos.length;
-      thumb.appendChild(count);
-    }
-    row.appendChild(thumb);
-
-    timelineList.appendChild(row);
-  });
+function distributeEven(total, groups) {
+  const base = Math.floor(total / groups);
+  const remainder = total % groups;
+  const sizes = [];
+  for (let i = 0; i < groups; i++) {
+    sizes.push(base + (i < remainder ? 1 : 0));
+  }
+  return sizes;
 }
 
-function formatDateLabel(dateStr) {
-  const [, m, d] = dateStr.split("-");
-  return `${parseInt(m, 10)}月${parseInt(d, 10)}日`;
+function formatMonthLabel(monthKey) {
+  const [y, m] = monthKey.split("-");
+  return `${y}年${parseInt(m, 10)}月`;
+}
+
+async function buildLongImage(photoSrcs) {
+  const images = await Promise.all(photoSrcs.map(loadImage));
+  const cellSize = 360;
+  const canvas = document.createElement("canvas");
+  canvas.width = cellSize;
+  canvas.height = cellSize * images.length;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#faf3e7";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  images.forEach((img, i) => drawCover(ctx, img, 0, i * cellSize, cellSize, cellSize));
+  return canvas.toDataURL("image/png");
+}
+
+async function renderMonthGallery() {
+  const entries = loadEntries();
+  const dates = Object.keys(entries).sort(); // ascending, so photos read chronologically within a month
+
+  const monthMap = {};
+  dates.forEach((dateStr) => {
+    const monthKey = dateStr.slice(0, 7);
+    if (!monthMap[monthKey]) monthMap[monthKey] = [];
+    monthMap[monthKey].push(...entries[dateStr].photos);
+  });
+
+  const monthKeys = Object.keys(monthMap).sort((a, b) => (a < b ? 1 : -1));
+
+  monthGallery.innerHTML = "";
+  galleryEmpty.hidden = monthKeys.length > 0;
+  monthLongImages = {};
+
+  for (const monthKey of monthKeys) {
+    const photos = monthMap[monthKey];
+    const sizes = distributeEven(photos.length, Math.min(9, photos.length));
+
+    const section = document.createElement("div");
+    section.className = "month-section";
+    section.dataset.monthKey = monthKey;
+
+    const title = document.createElement("div");
+    title.className = "month-title";
+    title.textContent = formatMonthLabel(monthKey);
+    section.appendChild(title);
+
+    const carousel = document.createElement("div");
+    carousel.className = "month-carousel";
+    section.appendChild(carousel);
+    monthGallery.appendChild(section);
+
+    const longImages = [];
+    let offset = 0;
+    for (const size of sizes) {
+      const groupPhotos = photos.slice(offset, offset + size);
+      offset += size;
+      const dataUrl = await buildLongImage(groupPhotos);
+      longImages.push(dataUrl);
+
+      const img = document.createElement("img");
+      img.className = "month-card";
+      img.src = dataUrl;
+      carousel.appendChild(img);
+    }
+
+    monthLongImages[monthKey] = longImages;
+  }
 }
 
 // ---------- 日历（仅记录模式下用于选日期） ----------
@@ -275,43 +314,7 @@ document.getElementById("btn-back-to-record").addEventListener("click", () => {
   showView("record");
 });
 
-// ---------- 单日详情 ----------
-const detailDateLabel = document.getElementById("detail-date-label");
-const detailPhotos = document.getElementById("detail-photos");
-
-function openDayDetail(dateStr) {
-  const entries = loadEntries();
-  const entry = entries[dateStr];
-  if (!entry) return;
-
-  detailDate = dateStr;
-  detailDateLabel.textContent = formatDateLabel(dateStr);
-  detailPhotos.innerHTML = "";
-  entry.photos.forEach((src) => {
-    const img = document.createElement("img");
-    img.src = src;
-    detailPhotos.appendChild(img);
-  });
-  showView("day-detail");
-}
-
-document.getElementById("btn-back-from-detail").addEventListener("click", () => {
-  renderTimeline();
-  showView("diary-list");
-});
-
-// ---------- 导出 ----------
-const exportModal = document.getElementById("export-modal");
-const exportCanvas = document.getElementById("export-canvas");
-
-document.getElementById("btn-export").addEventListener("click", () => {
-  exportModal.hidden = false;
-});
-
-document.getElementById("export-close").addEventListener("click", () => {
-  exportModal.hidden = true;
-});
-
+// ---------- 导出（按当前浏览到的月份，导出该月全部长图） ----------
 function loadImage(src) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -329,78 +332,42 @@ function drawCover(ctx, img, x, y, w, h) {
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
-function downloadCanvas(filename) {
-  exportCanvas.toBlob((blob) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, "image/png");
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  a.click();
 }
 
-document.getElementById("export-single").addEventListener("click", async () => {
-  const entries = loadEntries();
-  const entry = entries[detailDate];
-  if (!entry || entry.photos.length === 0) return;
-
-  const images = await Promise.all(entry.photos.map(loadImage));
-  const cellW = 640;
-  const cellH = 640;
-  const captionH = 60;
-  exportCanvas.width = cellW;
-  exportCanvas.height = cellH * images.length + captionH;
-
-  const ctx = exportCanvas.getContext("2d");
-  ctx.fillStyle = "#faf3e7";
-  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-  images.forEach((img, i) => {
-    drawCover(ctx, img, 0, i * cellH, cellW, cellH);
-  });
-
-  ctx.fillStyle = "#4a3b2a";
-  ctx.font = "28px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(formatDateLabel(detailDate), cellW / 2, cellH * images.length + captionH / 2 + 10);
-
-  downloadCanvas(`plog-${detailDate}.png`);
-  exportModal.hidden = true;
-});
-
-document.getElementById("export-grid").addEventListener("click", async () => {
-  const entries = loadEntries();
-  const entry = entries[detailDate];
-  if (!entry || entry.photos.length === 0) return;
-
-  const photos = entry.photos.slice(0, 9);
-  const images = await Promise.all(photos.map(loadImage));
-
-  const cell = 300;
-  exportCanvas.width = cell * 3;
-  exportCanvas.height = cell * 3;
-
-  const ctx = exportCanvas.getContext("2d");
-  ctx.fillStyle = "#faf3e7";
-  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-  for (let i = 0; i < 9; i++) {
-    const row = Math.floor(i / 3);
-    const col = i % 3;
-    if (images[i]) {
-      drawCover(ctx, images[i], col * cell, row * cell, cell, cell);
+function findActiveMonthSection() {
+  const sections = [...document.querySelectorAll(".month-section")];
+  let active = null;
+  let minDist = Infinity;
+  sections.forEach((sec) => {
+    const rect = sec.getBoundingClientRect();
+    const dist = Math.abs(rect.top);
+    if (rect.bottom > 0 && dist < minDist) {
+      minDist = dist;
+      active = sec;
     }
-  }
+  });
+  return active;
+}
 
-  downloadCanvas(`plog-${detailDate}-grid.png`);
-  exportModal.hidden = true;
+document.getElementById("btn-export-month").addEventListener("click", () => {
+  const active = findActiveMonthSection();
+  if (!active) return;
+  const monthKey = active.dataset.monthKey;
+  const images = monthLongImages[monthKey] || [];
+  images.forEach((dataUrl, i) => {
+    downloadDataUrl(dataUrl, `plog-${monthKey}-part${i + 1}.png`);
+  });
 });
 
 // ---------- 初始化 ----------
 function init() {
   if (localStorage.getItem(ONBOARD_KEY)) {
-    renderTimeline();
+    renderMonthGallery();
     showView("diary-list");
   } else {
     showView("onboarding");

@@ -34,13 +34,14 @@
       </form>
     </section>
 
-    <!-- 日记本 - 时间线视图（仅浏览） -->
+    <!-- 日记本 - 按月长图预览（仅浏览和导出） -->
     <section id="view-diary-list" class="view">
       <header class="page-header">
         <span class="page-title">日记本</span>
+        <button class="icon-btn" id="btn-export-month">导出</button>
       </header>
-      <div id="timeline-list" class="timeline-list"></div>
-      <p id="timeline-empty" class="empty-state" hidden>还没有日记，去记录第一天吧～</p>
+      <div id="month-gallery" class="month-gallery"></div>
+      <p id="gallery-empty" class="empty-state" hidden>还没有日记，去记录第一天吧～</p>
     </section>
 
     <!-- 记录 - 日历选日期 -->
@@ -52,16 +53,6 @@
         <button class="icon-btn" id="btn-back-to-record" title="返回记录">✕</button>
       </header>
       <div class="calendar-grid" id="calendar-grid"></div>
-    </section>
-
-    <!-- 单日详情页（仅浏览和导出） -->
-    <section id="view-day-detail" class="view">
-      <header class="page-header">
-        <button class="icon-btn" id="btn-back-from-detail">‹</button>
-        <span class="page-title" id="detail-date-label"></span>
-        <button class="icon-btn" id="btn-export">导出</button>
-      </header>
-      <div id="detail-photos" class="detail-photos"></div>
     </section>
 
     <!-- 底部 Tab -->
@@ -76,18 +67,6 @@
       </button>
     </nav>
   </div>
-
-  <!-- 导出弹窗 -->
-  <div id="export-modal" class="modal" hidden>
-    <div class="modal-card">
-      <p class="modal-title">导出这天的照片</p>
-      <button class="hand-btn" id="export-single">导出为单张</button>
-      <button class="hand-btn" id="export-grid">导出为9宫格</button>
-      <button class="icon-btn modal-close" id="export-close">取消</button>
-    </div>
-  </div>
-
-  <canvas id="export-canvas" hidden></canvas>
 
   <script src="script.js"></script>
 </body>

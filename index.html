@@ -3,30 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>照片日记</title>
+  <title>plog · 照片日记</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="app">
-    <header class="app-header">
-      <h1>照片日记</h1>
-    </header>
 
-    <main>
+    <!-- 引导页 -->
+    <section id="view-onboarding" class="view">
+      <div class="onboarding">
+        <h1 class="onboarding-title">用照片记录生活</h1>
+        <button class="hand-btn" id="btn-start-record">开始记录</button>
+        <button class="hand-btn hand-btn-secondary" id="btn-browse-diary">翻阅日记</button>
+      </div>
+    </section>
+
+    <!-- 记录页 -->
+    <section id="view-record" class="view">
+      <header class="page-header">
+        <span class="page-title">记录今天</span>
+        <input type="date" id="record-date" class="date-input" />
+      </header>
       <form id="entry-form" class="entry-form">
-        <label class="photo-picker" for="photo-input">
-          <img id="photo-preview" class="photo-preview" hidden alt="预览" />
-          <span id="photo-placeholder" class="photo-placeholder">+ 添加照片</span>
-          <input type="file" id="photo-input" accept="image/*" hidden />
-        </label>
-        <textarea id="text-input" placeholder="今天发生了什么..." rows="3"></textarea>
-        <button type="submit">发布</button>
+        <div class="photo-grid" id="photo-grid">
+          <label class="photo-add" for="photo-input">
+            <span>+</span>
+          </label>
+          <input type="file" id="photo-input" accept="image/*" multiple hidden />
+        </div>
+        <textarea id="text-input" placeholder="今天发生了什么..." rows="4"></textarea>
+        <button type="submit" class="hand-btn">保存</button>
       </form>
+    </section>
 
-      <section id="entry-list" class="entry-list"></section>
-      <p id="empty-state" class="empty-state">还没有日记，添加第一条吧～</p>
-    </main>
+    <!-- 日记本 - 时间线视图 -->
+    <section id="view-diary-list" class="view">
+      <header class="page-header">
+        <span class="page-title">日记本</span>
+        <button class="icon-btn" id="btn-switch-calendar" title="切换到日历视图">翻</button>
+      </header>
+      <div id="timeline-list" class="timeline-list"></div>
+      <p id="timeline-empty" class="empty-state" hidden>还没有日记，去记录第一天吧～</p>
+    </section>
+
+    <!-- 日记本 - 日历视图 -->
+    <section id="view-diary-calendar" class="view">
+      <header class="page-header calendar-header">
+        <button class="icon-btn" id="btn-prev-month">‹</button>
+        <span class="page-title" id="calendar-month-label">2026年7月</span>
+        <button class="icon-btn" id="btn-next-month">›</button>
+        <button class="icon-btn" id="btn-switch-list" title="切换到时间线视图">翻</button>
+      </header>
+      <div class="calendar-grid" id="calendar-grid"></div>
+    </section>
+
+    <!-- 单日详情页 -->
+    <section id="view-day-detail" class="view">
+      <header class="page-header">
+        <button class="icon-btn" id="btn-back-from-detail">‹</button>
+        <span class="page-title" id="detail-date-label"></span>
+        <button class="icon-btn" id="btn-export">导出</button>
+      </header>
+      <div id="detail-photos" class="detail-photos"></div>
+      <p id="detail-text" class="detail-text"></p>
+      <button class="hand-btn hand-btn-danger" id="btn-delete-entry">删除这天的日记</button>
+    </section>
+
+    <!-- 底部 Tab -->
+    <nav class="bottom-nav" id="bottom-nav">
+      <button class="nav-item" data-view="record">
+        <span class="nav-icon">📝</span>
+        <span>记录</span>
+      </button>
+      <button class="nav-item" data-view="diary-list">
+        <span class="nav-icon">📔</span>
+        <span>日记本</span>
+      </button>
+    </nav>
   </div>
+
+  <!-- 导出弹窗 -->
+  <div id="export-modal" class="modal" hidden>
+    <div class="modal-card">
+      <p class="modal-title">导出这天的照片</p>
+      <button class="hand-btn" id="export-single">导出为单张</button>
+      <button class="hand-btn" id="export-grid">导出为9宫格</button>
+      <button class="icon-btn modal-close" id="export-close">取消</button>
+    </div>
+  </div>
+
+  <canvas id="export-canvas" hidden></canvas>
 
   <script src="script.js"></script>
 </body>

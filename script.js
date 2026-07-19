@@ -18,7 +18,6 @@ let pendingPhotos = [];
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
 let detailDate = null;
-let calendarOrigin = "diary"; // "diary" | "record" — controls what tapping a calendar day does
 
 function todayStr() {
   return formatISO(new Date());
@@ -99,7 +98,6 @@ recordDateInput.addEventListener("change", () => {
 });
 
 document.getElementById("btn-open-calendar-picker").addEventListener("click", () => {
-  calendarOrigin = "record";
   renderCalendar();
   showView("diary-calendar");
 });
@@ -221,13 +219,7 @@ function formatDateLabel(dateStr) {
   return `${parseInt(m, 10)}月${parseInt(d, 10)}日`;
 }
 
-document.getElementById("btn-switch-calendar").addEventListener("click", () => {
-  calendarOrigin = "diary";
-  renderCalendar();
-  showView("diary-calendar");
-});
-
-// ---------- 日历 ----------
+// ---------- 日历（仅记录模式下用于选日期） ----------
 const calendarMonthLabel = document.getElementById("calendar-month-label");
 const calendarGrid = document.getElementById("calendar-grid");
 
@@ -263,15 +255,7 @@ function renderCalendar() {
     dayLabel.textContent = day;
     cell.appendChild(dayLabel);
 
-    cell.addEventListener("click", () => {
-      if (calendarOrigin === "record") {
-        openRecord(dateStr);
-      } else if (entry) {
-        openDayDetail(dateStr);
-      } else {
-        openRecord(dateStr);
-      }
-    });
+    cell.addEventListener("click", () => openRecord(dateStr));
 
     calendarGrid.appendChild(cell);
   }
@@ -287,9 +271,8 @@ document.getElementById("btn-next-month").addEventListener("click", () => {
   renderCalendar();
 });
 
-document.getElementById("btn-switch-list").addEventListener("click", () => {
-  renderTimeline();
-  showView("diary-list");
+document.getElementById("btn-back-to-record").addEventListener("click", () => {
+  showView("record");
 });
 
 // ---------- 单日详情 ----------
@@ -313,16 +296,6 @@ function openDayDetail(dateStr) {
 }
 
 document.getElementById("btn-back-from-detail").addEventListener("click", () => {
-  renderTimeline();
-  showView("diary-list");
-});
-
-document.getElementById("btn-delete-entry").addEventListener("click", () => {
-  if (!detailDate) return;
-  if (!confirm("确定要删除这天的日记吗？")) return;
-  const entries = loadEntries();
-  delete entries[detailDate];
-  saveEntries(entries);
   renderTimeline();
   showView("diary-list");
 });

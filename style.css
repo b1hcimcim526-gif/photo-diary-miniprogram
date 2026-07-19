@@ -6,7 +6,6 @@
   --accent: #e8935c;
   --accent-dark: #c9702e;
   --border: #eee0cc;
-  --danger: #c95c5c;
 }
 
 * {
@@ -79,12 +78,6 @@ body {
 
 .hand-btn-secondary {
   border-style: dashed;
-}
-
-.hand-btn-danger {
-  border-color: var(--danger);
-  color: var(--danger);
-  margin-top: 20px;
 }
 
 /* 页头 */

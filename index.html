@@ -70,6 +70,36 @@
     </nav>
   </div>
 
+  <!-- 添加方式菜单 -->
+  <div id="add-menu-modal" class="modal" hidden>
+    <div class="modal-card">
+      <p class="modal-title">添加照片</p>
+      <button type="button" class="hand-btn" id="add-menu-single">添加单张</button>
+      <button type="button" class="hand-btn" id="add-menu-multi">添加多张</button>
+      <button type="button" class="hand-btn" id="add-menu-collage">添加拼图</button>
+      <button type="button" class="icon-btn modal-close" id="add-menu-close">取消</button>
+    </div>
+  </div>
+
+  <!-- 拼图模板选择 -->
+  <div id="template-modal" class="modal" hidden>
+    <div class="modal-card template-modal-card">
+      <p class="modal-title">选择拼图模板</p>
+      <div class="template-grid" id="template-grid"></div>
+      <button type="button" class="icon-btn modal-close" id="template-close">取消</button>
+    </div>
+  </div>
+
+  <!-- 拼图编辑器 -->
+  <div id="collage-editor-modal" class="modal" hidden>
+    <div class="modal-card collage-editor-card">
+      <p class="modal-title">点击每一格添加照片</p>
+      <div class="collage-editor-grid" id="collage-editor-grid"></div>
+      <button type="button" class="hand-btn" id="collage-done">完成</button>
+      <button type="button" class="icon-btn modal-close" id="collage-close">取消</button>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

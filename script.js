@@ -132,18 +132,230 @@ function renderPhotoCarousel(scrollToEnd) {
   }
 }
 
-btnAddPhoto.addEventListener("click", () => photoInput.click());
+// ---------- 添加方式菜单 ----------
+const addMenuModal = document.getElementById("add-menu-modal");
+let photoInputMode = "single"; // "single" | "multi" | "collage"
+
+btnAddPhoto.addEventListener("click", () => {
+  addMenuModal.hidden = false;
+});
+
+document.getElementById("add-menu-close").addEventListener("click", () => {
+  addMenuModal.hidden = true;
+});
+
+document.getElementById("add-menu-single").addEventListener("click", () => {
+  addMenuModal.hidden = true;
+  photoInputMode = "single";
+  photoInput.multiple = false;
+  photoInput.click();
+});
+
+document.getElementById("add-menu-multi").addEventListener("click", () => {
+  addMenuModal.hidden = true;
+  photoInputMode = "multi";
+  photoInput.multiple = true;
+  photoInput.click();
+});
+
+document.getElementById("add-menu-collage").addEventListener("click", () => {
+  addMenuModal.hidden = true;
+  renderTemplateGrid();
+  templateModal.hidden = false;
+});
 
 photoInput.addEventListener("change", () => {
-  const file = photoInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    pendingPhotos.push(reader.result);
-    renderPhotoCarousel(true);
+  const files = Array.from(photoInput.files);
+  if (files.length === 0) return;
+
+  if (photoInputMode === "collage") {
+    const reader = new FileReader();
+    reader.onload = () => {
+      collagePhotos[activeCollageCellIndex] = reader.result;
+      renderCollageEditor();
+      photoInput.value = "";
+    };
+    reader.readAsDataURL(files[0]);
+    return;
+  }
+
+  const toAdd = files.slice(0, MAX_PHOTOS - pendingPhotos.length);
+  let remaining = toAdd.length;
+  if (remaining === 0) {
     photoInput.value = "";
-  };
-  reader.readAsDataURL(file);
+    return;
+  }
+  toAdd.forEach((file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingPhotos.push(reader.result);
+      remaining -= 1;
+      if (remaining === 0) {
+        renderPhotoCarousel(true);
+        photoInput.value = "";
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+// ---------- 拼图模板 ----------
+const TEMPLATES = [
+  { id: "v2", cells: [{ x: 0, y: 0, w: 0.5, h: 1 }, { x: 0.5, y: 0, w: 0.5, h: 1 }] },
+  { id: "h2", cells: [{ x: 0, y: 0, w: 1, h: 0.5 }, { x: 0, y: 0.5, w: 1, h: 0.5 }] },
+  {
+    id: "l1r2",
+    cells: [
+      { x: 0, y: 0, w: 0.5, h: 1 },
+      { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+      { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+    ],
+  },
+  {
+    id: "t1b2",
+    cells: [
+      { x: 0, y: 0, w: 1, h: 0.5 },
+      { x: 0, y: 0.5, w: 0.5, h: 0.5 },
+      { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+    ],
+  },
+  {
+    id: "grid4",
+    cells: [
+      { x: 0, y: 0, w: 0.5, h: 0.5 },
+      { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+      { x: 0, y: 0.5, w: 0.5, h: 0.5 },
+      { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+    ],
+  },
+  {
+    id: "grid9",
+    cells: (() => {
+      const cells = [];
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+          cells.push({ x: col / 3, y: row / 3, w: 1 / 3, h: 1 / 3 });
+        }
+      }
+      return cells;
+    })(),
+  },
+];
+
+const templateModal = document.getElementById("template-modal");
+const templateGrid = document.getElementById("template-grid");
+
+function renderTemplateGrid() {
+  templateGrid.innerHTML = "";
+  TEMPLATES.forEach((tpl) => {
+    const thumb = document.createElement("button");
+    thumb.type = "button";
+    thumb.className = "template-thumb";
+    tpl.cells.forEach((cell) => {
+      const seg = document.createElement("span");
+      seg.className = "template-thumb-cell";
+      seg.style.left = cell.x * 100 + "%";
+      seg.style.top = cell.y * 100 + "%";
+      seg.style.width = cell.w * 100 + "%";
+      seg.style.height = cell.h * 100 + "%";
+      thumb.appendChild(seg);
+    });
+    thumb.addEventListener("click", () => {
+      templateModal.hidden = true;
+      openCollageEditor(tpl);
+    });
+    templateGrid.appendChild(thumb);
+  });
+}
+
+document.getElementById("template-close").addEventListener("click", () => {
+  templateModal.hidden = true;
+});
+
+// ---------- 拼图编辑器 ----------
+const collageEditorModal = document.getElementById("collage-editor-modal");
+const collageEditorGrid = document.getElementById("collage-editor-grid");
+let activeTemplate = null;
+let collagePhotos = [];
+let activeCollageCellIndex = null;
+
+function openCollageEditor(tpl) {
+  activeTemplate = tpl;
+  collagePhotos = tpl.cells.map(() => null);
+  renderCollageEditor();
+  collageEditorModal.hidden = false;
+}
+
+function renderCollageEditor() {
+  collageEditorGrid.innerHTML = "";
+  activeTemplate.cells.forEach((cell, index) => {
+    const cellEl = document.createElement("div");
+    cellEl.className = "collage-cell";
+    cellEl.style.left = cell.x * 100 + "%";
+    cellEl.style.top = cell.y * 100 + "%";
+    cellEl.style.width = cell.w * 100 + "%";
+    cellEl.style.height = cell.h * 100 + "%";
+
+    if (collagePhotos[index]) {
+      const img = document.createElement("img");
+      img.src = collagePhotos[index];
+      cellEl.appendChild(img);
+    }
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "collage-cell-add";
+    addBtn.textContent = "+";
+    addBtn.addEventListener("click", () => {
+      activeCollageCellIndex = index;
+      photoInputMode = "collage";
+      photoInput.multiple = false;
+      photoInput.click();
+    });
+    cellEl.appendChild(addBtn);
+
+    collageEditorGrid.appendChild(cellEl);
+  });
+}
+
+document.getElementById("collage-close").addEventListener("click", () => {
+  collageEditorModal.hidden = true;
+});
+
+document.getElementById("collage-done").addEventListener("click", async () => {
+  if (collagePhotos.every((p) => !p)) return;
+  if (pendingPhotos.length >= MAX_PHOTOS) {
+    collageEditorModal.hidden = true;
+    return;
+  }
+
+  const canvasSize = 640;
+  const gap = 6;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#faf3e7";
+  ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+  for (let i = 0; i < activeTemplate.cells.length; i++) {
+    const src = collagePhotos[i];
+    if (!src) continue;
+    const cell = activeTemplate.cells[i];
+    const img = await loadImage(src);
+    drawCover(
+      ctx,
+      img,
+      cell.x * canvasSize + gap / 2,
+      cell.y * canvasSize + gap / 2,
+      cell.w * canvasSize - gap,
+      cell.h * canvasSize - gap
+    );
+  }
+
+  pendingPhotos.push(canvas.toDataURL("image/png"));
+  renderPhotoCarousel(true);
+  collageEditorModal.hidden = true;
 });
 
 entryForm.addEventListener("submit", (event) => {

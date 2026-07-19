@@ -168,9 +168,6 @@ entryForm.addEventListener("submit", (event) => {
   const entries = loadEntries();
   entries[dateStr] = { photos: [...pendingPhotos] };
   saveEntries(entries);
-
-  renderMonthGallery();
-  showView("diary-list");
 });
 
 // ---------- 日记本：按月长图预览 ----------

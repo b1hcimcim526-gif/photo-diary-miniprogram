@@ -107,6 +107,18 @@ document.getElementById("btn-open-calendar-picker").addEventListener("click", ()
 function renderPhotoCarousel(scrollToEnd) {
   photoCarousel.innerHTML = "";
 
+  if (pendingPhotos.length === 0) {
+    photoCarousel.classList.add("empty");
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "empty-add-btn";
+    addBtn.textContent = "+";
+    addBtn.addEventListener("click", () => photoInput.click());
+    photoCarousel.appendChild(addBtn);
+    return;
+  }
+
+  photoCarousel.classList.remove("empty");
   pendingPhotos.forEach((src, index) => {
     const card = document.createElement("div");
     card.className = "photo-card";

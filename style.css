@@ -131,8 +131,8 @@ body {
 }
 
 .photo-card {
-  flex: 0 0 100%;
-  scroll-snap-align: center;
+  flex: 0 0 76%;
+  scroll-snap-align: start;
   aspect-ratio: 4 / 5;
   border-radius: 14px;
   overflow: hidden;

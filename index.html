@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>照片日记</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>照片日记</h1>
+    </header>
+
+    <main>
+      <form id="entry-form" class="entry-form">
+        <label class="photo-picker" for="photo-input">
+          <img id="photo-preview" class="photo-preview" hidden alt="预览" />
+          <span id="photo-placeholder" class="photo-placeholder">+ 添加照片</span>
+          <input type="file" id="photo-input" accept="image/*" hidden />
+        </label>
+        <textarea id="text-input" placeholder="今天发生了什么..." rows="3"></textarea>
+        <button type="submit">发布</button>
+      </form>
+
+      <section id="entry-list" class="entry-list"></section>
+      <p id="empty-state" class="empty-state">还没有日记，添加第一条吧～</p>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

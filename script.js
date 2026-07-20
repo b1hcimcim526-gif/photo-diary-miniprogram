@@ -484,10 +484,13 @@ document.getElementById("collage-done").addEventListener("click", async () => {
 
 entryForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (pendingPhotos.length === 0) return;
 
   const entries = loadEntries();
-  entries[currentRecordDate] = { photos: [...pendingPhotos] };
+  if (pendingPhotos.length === 0) {
+    delete entries[currentRecordDate];
+  } else {
+    entries[currentRecordDate] = { photos: [...pendingPhotos] };
+  }
   saveEntries(entries);
 
   renderRecordFeed();

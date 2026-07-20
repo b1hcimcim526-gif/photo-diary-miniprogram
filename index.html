@@ -113,6 +113,20 @@
     </div>
   </div>
 
+  <!-- 给照片加文字 -->
+  <div id="text-editor-modal" class="modal" hidden>
+    <div class="modal-card text-editor-card">
+      <p class="modal-title">给照片加文字</p>
+      <div class="text-editor-preview">
+        <img id="text-editor-image" alt="" />
+        <div class="text-editor-overlay" id="text-editor-overlay-text"></div>
+      </div>
+      <textarea id="text-editor-input" class="text-editor-input" placeholder="输入文字…" rows="2"></textarea>
+      <button type="button" class="hand-btn" id="text-editor-confirm">确定</button>
+      <button type="button" class="icon-btn modal-close" id="text-editor-cancel">取消</button>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

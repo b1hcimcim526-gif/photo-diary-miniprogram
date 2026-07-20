@@ -217,6 +217,9 @@ function renderPhotoCarousel(scrollToEnd) {
   }
 
   pendingPhotos.forEach((src, index) => {
+    const item = document.createElement("div");
+    item.className = "photo-item";
+
     const card = document.createElement("div");
     card.className = "photo-card";
     const img = document.createElement("img");
@@ -231,7 +234,19 @@ function renderPhotoCarousel(scrollToEnd) {
     });
     card.appendChild(img);
     card.appendChild(removeBtn);
-    photoCarousel.appendChild(card);
+    item.appendChild(card);
+
+    const footer = document.createElement("div");
+    footer.className = "photo-card-footer";
+    const textBtn = document.createElement("button");
+    textBtn.type = "button";
+    textBtn.className = "photo-text-btn";
+    textBtn.textContent = "Aa 添加文字";
+    textBtn.addEventListener("click", () => openTextEditor(index));
+    footer.appendChild(textBtn);
+    item.appendChild(footer);
+
+    photoCarousel.appendChild(item);
   });
 
   if (scrollToEnd) {
@@ -480,6 +495,82 @@ document.getElementById("collage-done").addEventListener("click", async () => {
   pendingPhotos.push(canvas.toDataURL("image/png"));
   renderPhotoCarousel(true);
   collageEditorModal.hidden = true;
+});
+
+// ---------- 给照片加文字 ----------
+const textEditorModal = document.getElementById("text-editor-modal");
+const textEditorImage = document.getElementById("text-editor-image");
+const textEditorOverlayText = document.getElementById("text-editor-overlay-text");
+const textEditorInput = document.getElementById("text-editor-input");
+let textEditorIndex = null;
+
+function openTextEditor(index) {
+  textEditorIndex = index;
+  textEditorImage.src = pendingPhotos[index];
+  textEditorInput.value = "";
+  textEditorOverlayText.textContent = "";
+  textEditorModal.hidden = false;
+}
+
+textEditorInput.addEventListener("input", () => {
+  textEditorOverlayText.textContent = textEditorInput.value;
+});
+
+document.getElementById("text-editor-cancel").addEventListener("click", () => {
+  textEditorModal.hidden = true;
+});
+
+function wrapTextLines(ctx, text, maxWidth) {
+  const lines = [];
+  text.split("\n").forEach((paragraph) => {
+    let line = "";
+    for (const ch of paragraph) {
+      const test = line + ch;
+      if (line && ctx.measureText(test).width > maxWidth) {
+        lines.push(line);
+        line = ch;
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+  });
+  return lines;
+}
+
+document.getElementById("text-editor-confirm").addEventListener("click", async () => {
+  const text = textEditorInput.value.trim();
+  textEditorModal.hidden = true;
+  if (!text) return;
+
+  const img = await loadImage(pendingPhotos[textEditorIndex]);
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+
+  const fontSize = Math.max(20, Math.round(img.width * 0.055));
+  ctx.font = `700 ${fontSize}px -apple-system, "PingFang SC", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.lineJoin = "round";
+
+  const maxWidth = img.width * 0.86;
+  const lines = wrapTextLines(ctx, text, maxWidth);
+  const lineHeight = fontSize * 1.3;
+  const bottomPadding = img.height * 0.06;
+
+  lines.forEach((line, i) => {
+    const y = img.height - bottomPadding - (lines.length - 1 - i) * lineHeight;
+    ctx.lineWidth = fontSize * 0.18;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.strokeText(line, img.width / 2, y);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(line, img.width / 2, y);
+  });
+
+  pendingPhotos[textEditorIndex] = canvas.toDataURL("image/png");
+  renderPhotoCarousel();
 });
 
 entryForm.addEventListener("submit", (event) => {

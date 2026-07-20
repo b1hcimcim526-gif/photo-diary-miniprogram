@@ -133,6 +133,23 @@
     </div>
   </div>
 
+  <!-- 缩放照片 -->
+  <div id="zoom-editor-modal" class="modal" hidden>
+    <div class="modal-card zoom-editor-card">
+      <p class="modal-title">调整照片</p>
+      <div class="zoom-editor-preview" id="zoom-editor-preview">
+        <img id="zoom-editor-image" alt="" />
+      </div>
+      <p class="text-editor-hint">拖动照片可调整位置</p>
+      <label class="text-editor-size-row">
+        缩放
+        <input type="range" id="zoom-editor-scale" min="100" max="300" value="100" />
+      </label>
+      <button type="button" class="hand-btn" id="zoom-editor-confirm">确定</button>
+      <button type="button" class="icon-btn modal-close" id="zoom-editor-cancel">取消</button>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

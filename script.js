@@ -13,8 +13,12 @@ const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
 const MAX_PHOTOS = 9;
+const CANVAS_W = 720;
+const CANVAS_H = 960; // 3:4
 
 let pendingPhotos = [];
+let pendingPhotoSources = []; // parallel to pendingPhotos: original upload, used for re-zooming
+let pendingPhotoTransforms = []; // parallel to pendingPhotos: { zoom, x, y }
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
 let monthLongImages = {}; // monthKey -> [dataURL, ...] for the current gallery render
@@ -188,6 +192,8 @@ function loadRecordForm(dateStr) {
   const entries = loadEntries();
   const entry = entries[dateStr];
   pendingPhotos = entry ? [...entry.photos] : [];
+  pendingPhotoSources = entry ? [...entry.photos] : [];
+  pendingPhotoTransforms = entry ? entry.photos.map(() => ({ zoom: 1, x: 0.5, y: 0.5 })) : [];
   renderPhotoCarousel();
 }
 
@@ -224,12 +230,15 @@ function renderPhotoCarousel(scrollToEnd) {
     card.className = "photo-card";
     const img = document.createElement("img");
     img.src = src;
+    img.addEventListener("click", () => openZoomEditor(index));
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "photo-remove";
     removeBtn.textContent = "×";
     removeBtn.addEventListener("click", () => {
       pendingPhotos.splice(index, 1);
+      pendingPhotoSources.splice(index, 1);
+      pendingPhotoTransforms.splice(index, 1);
       renderPhotoCarousel();
     });
     card.appendChild(img);
@@ -286,7 +295,7 @@ document.getElementById("add-menu-collage").addEventListener("click", () => {
   templateModal.hidden = false;
 });
 
-photoInput.addEventListener("change", () => {
+photoInput.addEventListener("change", async () => {
   const files = Array.from(photoInput.files);
   if (files.length === 0) return;
 
@@ -328,24 +337,51 @@ photoInput.addEventListener("change", () => {
   }
 
   const toAdd = files.slice(0, MAX_PHOTOS - pendingPhotos.length);
-  let remaining = toAdd.length;
-  if (remaining === 0) {
+  if (toAdd.length === 0) {
     photoInput.value = "";
     return;
   }
-  toAdd.forEach((file) => {
+  for (const file of toAdd) {
+    const raw = await readFileAsDataUrl(file);
+    const transform = { zoom: 1, x: 0.5, y: 0.5 };
+    const composed = await renderPhotoTransform(raw, transform);
+    pendingPhotos.push(composed);
+    pendingPhotoSources.push(raw);
+    pendingPhotoTransforms.push(transform);
+  }
+  renderPhotoCarousel(true);
+  photoInput.value = "";
+});
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      pendingPhotos.push(reader.result);
-      remaining -= 1;
-      if (remaining === 0) {
-        renderPhotoCarousel(true);
-        photoInput.value = "";
-      }
-    };
+    reader.onload = () => resolve(reader.result);
     reader.readAsDataURL(file);
   });
-});
+}
+
+async function renderPhotoTransform(srcDataUrl, transform) {
+  const img = await loadImage(srcDataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  const containScale = Math.min(CANVAS_W / img.width, CANVAS_H / img.height);
+  const scale = containScale * transform.zoom;
+  const dw = img.width * scale;
+  const dh = img.height * scale;
+  const overflowX = Math.max(0, dw - CANVAS_W);
+  const overflowY = Math.max(0, dh - CANVAS_H);
+  const dx = overflowX > 0 ? -overflowX * transform.x : (CANVAS_W - dw) / 2;
+  const dy = overflowY > 0 ? -overflowY * transform.y : (CANVAS_H - dh) / 2;
+
+  ctx.drawImage(img, dx, dy, dw, dh);
+  return canvas.toDataURL("image/png");
+}
 
 // ---------- 拼图模板 ----------
 const TEMPLATES = [
@@ -549,7 +585,10 @@ document.getElementById("collage-done").addEventListener("click", async () => {
     );
   }
 
-  pendingPhotos.push(canvas.toDataURL("image/png"));
+  const collageResult = canvas.toDataURL("image/png");
+  pendingPhotos.push(collageResult);
+  pendingPhotoSources.push(collageResult);
+  pendingPhotoTransforms.push({ zoom: 1, x: 0.5, y: 0.5 });
   renderPhotoCarousel(true);
   collageEditorModal.hidden = true;
 });
@@ -673,7 +712,98 @@ document.getElementById("text-editor-confirm").addEventListener("click", async (
     ctx.fillText(line, centerX, y);
   });
 
-  pendingPhotos[textEditorIndex] = canvas.toDataURL("image/png");
+  const withText = canvas.toDataURL("image/png");
+  pendingPhotos[textEditorIndex] = withText;
+  pendingPhotoSources[textEditorIndex] = withText;
+  renderPhotoCarousel();
+});
+
+// ---------- 缩放照片 ----------
+const zoomEditorModal = document.getElementById("zoom-editor-modal");
+const zoomEditorPreview = document.getElementById("zoom-editor-preview");
+const zoomEditorImage = document.getElementById("zoom-editor-image");
+const zoomEditorScale = document.getElementById("zoom-editor-scale");
+let zoomEditorIndex = null;
+let zoomTransform = { zoom: 1, x: 0.5, y: 0.5 };
+
+function openZoomEditor(index) {
+  zoomEditorIndex = index;
+  zoomTransform = { ...pendingPhotoTransforms[index] };
+  zoomEditorScale.value = Math.round(zoomTransform.zoom * 100);
+  zoomEditorImage.onload = () => updateZoomPreview();
+  zoomEditorImage.src = pendingPhotoSources[index];
+  zoomEditorModal.hidden = false;
+}
+
+function updateZoomPreview() {
+  const previewW = zoomEditorPreview.clientWidth;
+  const previewH = zoomEditorPreview.clientHeight;
+  const iw = zoomEditorImage.naturalWidth;
+  const ih = zoomEditorImage.naturalHeight;
+  if (!iw || !ih) return;
+  const containScale = Math.min(previewW / iw, previewH / ih);
+  const scale = containScale * zoomTransform.zoom;
+  const dw = iw * scale;
+  const dh = ih * scale;
+  const overflowX = Math.max(0, dw - previewW);
+  const overflowY = Math.max(0, dh - previewH);
+  const dx = overflowX > 0 ? -overflowX * zoomTransform.x : (previewW - dw) / 2;
+  const dy = overflowY > 0 ? -overflowY * zoomTransform.y : (previewH - dh) / 2;
+  zoomEditorImage.style.width = `${dw}px`;
+  zoomEditorImage.style.height = `${dh}px`;
+  zoomEditorImage.style.left = `${dx}px`;
+  zoomEditorImage.style.top = `${dy}px`;
+}
+
+zoomEditorScale.addEventListener("input", () => {
+  zoomTransform.zoom = Number(zoomEditorScale.value) / 100;
+  updateZoomPreview();
+});
+
+let draggingZoom = false;
+let zoomDragStartX = 0;
+let zoomDragStartY = 0;
+let zoomDragStartOffset = { x: 0.5, y: 0.5 };
+
+zoomEditorImage.addEventListener("pointerdown", (event) => {
+  draggingZoom = true;
+  zoomDragStartX = event.clientX;
+  zoomDragStartY = event.clientY;
+  zoomDragStartOffset = { ...zoomTransform };
+  zoomEditorImage.setPointerCapture(event.pointerId);
+});
+
+zoomEditorImage.addEventListener("pointermove", (event) => {
+  if (!draggingZoom) return;
+  const previewW = zoomEditorPreview.clientWidth;
+  const previewH = zoomEditorPreview.clientHeight;
+  const iw = zoomEditorImage.naturalWidth;
+  const ih = zoomEditorImage.naturalHeight;
+  const containScale = Math.min(previewW / iw, previewH / ih);
+  const scale = containScale * zoomTransform.zoom;
+  const overflowX = Math.max(0, iw * scale - previewW);
+  const overflowY = Math.max(0, ih * scale - previewH);
+  const deltaX = event.clientX - zoomDragStartX;
+  const deltaY = event.clientY - zoomDragStartY;
+
+  if (overflowX > 0) zoomTransform.x = clamp01(zoomDragStartOffset.x - deltaX / overflowX);
+  if (overflowY > 0) zoomTransform.y = clamp01(zoomDragStartOffset.y - deltaY / overflowY);
+  updateZoomPreview();
+});
+
+zoomEditorImage.addEventListener("pointerup", (event) => {
+  draggingZoom = false;
+  zoomEditorImage.releasePointerCapture(event.pointerId);
+});
+
+document.getElementById("zoom-editor-cancel").addEventListener("click", () => {
+  zoomEditorModal.hidden = true;
+});
+
+document.getElementById("zoom-editor-confirm").addEventListener("click", async () => {
+  pendingPhotoTransforms[zoomEditorIndex] = { ...zoomTransform };
+  pendingPhotos[zoomEditorIndex] = await renderPhotoTransform(pendingPhotoSources[zoomEditorIndex], zoomTransform);
+  zoomEditorModal.hidden = true;
   renderPhotoCarousel();
 });
 

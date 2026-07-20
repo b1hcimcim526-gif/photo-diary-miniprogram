@@ -95,6 +95,23 @@ body {
   text-align: center;
 }
 
+.header-titles {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.header-titles .page-title {
+  flex: none;
+}
+
+.record-date-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 .icon-btn {
   background: var(--card-bg);
   border: 1px solid var(--border);

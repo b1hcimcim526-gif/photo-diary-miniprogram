@@ -79,9 +79,16 @@ const photoCarousel = document.getElementById("photo-carousel");
 const photoInput = document.getElementById("photo-input");
 const entryForm = document.getElementById("entry-form");
 const btnAddPhoto = document.getElementById("btn-add-photo");
+const recordDateLabel = document.getElementById("record-date-label");
+
+function formatFullDateLabel(dateStr) {
+  const [y, m, d] = dateStr.split("-");
+  return `${y}年${parseInt(m, 10)}月${parseInt(d, 10)}日`;
+}
 
 function openRecord(dateStr) {
   currentRecordDate = dateStr;
+  recordDateLabel.textContent = formatFullDateLabel(dateStr);
   loadRecordForm(dateStr);
   showView("record");
 }

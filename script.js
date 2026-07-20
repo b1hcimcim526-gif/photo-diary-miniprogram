@@ -92,13 +92,28 @@ function renderRecordFeed() {
   recordFeed.innerHTML = "";
 
   const today = todayStr();
+  const rows = [];
   if (!entries[today]) {
-    recordFeed.appendChild(buildFeedRow(today, null));
+    rows.push(today);
   }
+  dates.forEach((dateStr) => rows.push(dateStr));
 
-  dates.forEach((dateStr) => {
-    recordFeed.appendChild(buildFeedRow(dateStr, entries[dateStr]));
+  let lastYear = null;
+  rows.forEach((dateStr) => {
+    const year = dateStr.split("-")[0];
+    if (year !== lastYear) {
+      recordFeed.appendChild(buildYearDivider(year));
+      lastYear = year;
+    }
+    recordFeed.appendChild(buildFeedRow(dateStr, entries[dateStr] || null));
   });
+}
+
+function buildYearDivider(year) {
+  const div = document.createElement("div");
+  div.className = "feed-year-divider";
+  div.textContent = `${year}年`;
+  return div;
 }
 
 function buildFeedRow(dateStr, entry) {

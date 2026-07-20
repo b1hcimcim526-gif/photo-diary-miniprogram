@@ -134,6 +134,13 @@ body {
   flex-direction: column;
 }
 
+.feed-year-divider {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 14px 0 2px;
+}
+
 .feed-row {
   display: flex;
   gap: 14px;

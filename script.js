@@ -4,6 +4,7 @@ const ONBOARD_KEY = "plog-onboarded";
 const views = {
   onboarding: document.getElementById("view-onboarding"),
   record: document.getElementById("view-record"),
+  "record-editor": document.getElementById("view-record-editor"),
   "diary-list": document.getElementById("view-diary-list"),
   "diary-calendar": document.getElementById("view-diary-calendar"),
 };
@@ -17,6 +18,7 @@ let pendingPhotos = [];
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
 let monthLongImages = {}; // monthKey -> [dataURL, ...] for the current gallery render
+let calendarReturnView = "record";
 
 function todayStr() {
   return formatISO(new Date());
@@ -42,17 +44,18 @@ function showView(name) {
   Object.entries(views).forEach(([key, el]) => {
     el.classList.toggle("active", key === name);
   });
-  const showNav = name === "record" || name === "diary-list" || name === "diary-calendar";
+  const showNav = name === "record" || name === "record-editor" || name === "diary-list" || name === "diary-calendar";
   bottomNav.hidden = !showNav;
   navItems.forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.view === name);
+    const isRecordTab = btn.dataset.view === "record" && (name === "record" || name === "record-editor");
+    btn.classList.toggle("active", btn.dataset.view === name || isRecordTab);
   });
 }
 
 // ---------- 引导页 ----------
 document.getElementById("btn-start-record").addEventListener("click", () => {
   localStorage.setItem(ONBOARD_KEY, "1");
-  openRecord(todayStr());
+  openRecordEditor(todayStr());
 });
 
 document.getElementById("btn-browse-diary").addEventListener("click", () => {
@@ -65,7 +68,10 @@ document.getElementById("btn-browse-diary").addEventListener("click", () => {
 navItems.forEach((btn) => {
   btn.addEventListener("click", () => {
     const view = btn.dataset.view;
-    if (view === "record") openRecord(todayStr());
+    if (view === "record") {
+      renderRecordFeed();
+      showView("record");
+    }
     if (view === "diary-list") {
       renderMonthGallery();
       showView("diary-list");
@@ -73,7 +79,77 @@ navItems.forEach((btn) => {
   });
 });
 
-// ---------- 记录页 ----------
+// ---------- 创作栏首页：朋友圈式列表 ----------
+const recordFeed = document.getElementById("record-feed");
+
+function formatFeedMonth(dateStr) {
+  return `${parseInt(dateStr.split("-")[1], 10)}月`;
+}
+
+function renderRecordFeed() {
+  const entries = loadEntries();
+  const dates = Object.keys(entries).sort((a, b) => (a < b ? 1 : -1));
+  recordFeed.innerHTML = "";
+
+  const today = todayStr();
+  if (!entries[today]) {
+    recordFeed.appendChild(buildFeedRow(today, null));
+  }
+
+  dates.forEach((dateStr) => {
+    recordFeed.appendChild(buildFeedRow(dateStr, entries[dateStr]));
+  });
+}
+
+function buildFeedRow(dateStr, entry) {
+  const row = document.createElement("div");
+  row.className = "feed-row";
+  row.addEventListener("click", () => openRecordEditor(dateStr));
+
+  const dateEl = document.createElement("div");
+  dateEl.className = "feed-date";
+  const monthEl = document.createElement("span");
+  monthEl.className = "feed-date-month";
+  monthEl.textContent = formatFeedMonth(dateStr);
+  const dayEl = document.createElement("span");
+  dayEl.className = "feed-date-day";
+  dayEl.textContent = dateStr.split("-")[2];
+  dateEl.appendChild(monthEl);
+  dateEl.appendChild(dayEl);
+  row.appendChild(dateEl);
+
+  const content = document.createElement("div");
+  content.className = "feed-content";
+
+  if (entry) {
+    const grid = document.createElement("div");
+    grid.className = "feed-grid";
+    entry.photos.slice(0, 9).forEach((src) => {
+      const img = document.createElement("img");
+      img.src = src;
+      grid.appendChild(img);
+    });
+    content.appendChild(grid);
+  } else {
+    const placeholder = document.createElement("div");
+    placeholder.className = "feed-add-placeholder";
+    const addBtn = document.createElement("span");
+    addBtn.className = "feed-add-btn";
+    addBtn.textContent = "+";
+    placeholder.appendChild(addBtn);
+    content.appendChild(placeholder);
+  }
+
+  row.appendChild(content);
+  return row;
+}
+
+document.getElementById("btn-back-to-feed").addEventListener("click", () => {
+  renderRecordFeed();
+  showView("record");
+});
+
+// ---------- 创作栏编辑页 ----------
 let currentRecordDate = todayStr();
 const photoCarousel = document.getElementById("photo-carousel");
 const photoInput = document.getElementById("photo-input");
@@ -86,11 +162,11 @@ function formatFullDateLabel(dateStr) {
   return `${y}年${parseInt(m, 10)}月${parseInt(d, 10)}日`;
 }
 
-function openRecord(dateStr) {
+function openRecordEditor(dateStr) {
   currentRecordDate = dateStr;
   recordDateLabel.textContent = formatFullDateLabel(dateStr);
   loadRecordForm(dateStr);
-  showView("record");
+  showView("record-editor");
 }
 
 function loadRecordForm(dateStr) {
@@ -100,9 +176,18 @@ function loadRecordForm(dateStr) {
   renderPhotoCarousel();
 }
 
-document.getElementById("btn-open-calendar-picker").addEventListener("click", () => {
+function openCalendarFromRecord(returnView) {
+  calendarReturnView = returnView;
   renderCalendar();
   showView("diary-calendar");
+}
+
+document.getElementById("btn-open-calendar-picker").addEventListener("click", () => {
+  openCalendarFromRecord("record-editor");
+});
+
+document.getElementById("btn-open-calendar-picker-home").addEventListener("click", () => {
+  openCalendarFromRecord("record");
 });
 
 function renderPhotoCarousel(scrollToEnd) {
@@ -389,6 +474,9 @@ entryForm.addEventListener("submit", (event) => {
   const entries = loadEntries();
   entries[currentRecordDate] = { photos: [...pendingPhotos] };
   saveEntries(entries);
+
+  renderRecordFeed();
+  showView("record");
 });
 
 // ---------- 日记本：按月长图预览 ----------
@@ -512,7 +600,7 @@ function renderCalendar() {
     dayLabel.textContent = day;
     cell.appendChild(dayLabel);
 
-    cell.addEventListener("click", () => openRecord(dateStr));
+    cell.addEventListener("click", () => openRecordEditor(dateStr));
 
     calendarGrid.appendChild(cell);
   }
@@ -529,7 +617,10 @@ document.getElementById("btn-next-month").addEventListener("click", () => {
 });
 
 document.getElementById("btn-back-to-record").addEventListener("click", () => {
-  showView("record");
+  if (calendarReturnView === "record") {
+    renderRecordFeed();
+  }
+  showView(calendarReturnView);
 });
 
 // ---------- 导出（按当前浏览到的月份，导出该月全部长图） ----------

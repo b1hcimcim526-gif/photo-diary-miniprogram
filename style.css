@@ -128,6 +128,91 @@ body {
   gap: 8px;
 }
 
+/* 创作栏首页：朋友圈式列表 */
+.record-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.feed-row {
+  display: flex;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.feed-row:last-child {
+  border-bottom: none;
+}
+
+.feed-date {
+  flex: 0 0 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--muted);
+  padding-top: 2px;
+}
+
+.feed-date-month {
+  font-size: 12px;
+}
+
+.feed-date-day {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.feed-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  max-width: 220px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.feed-grid img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+
+.feed-add-placeholder {
+  width: 68px;
+  height: 68px;
+  background: var(--card-bg);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.feed-add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* 记录页 */
 .entry-form {
   display: flex;

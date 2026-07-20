@@ -294,6 +294,7 @@ photoInput.addEventListener("change", () => {
     const reader = new FileReader();
     reader.onload = () => {
       collagePhotos[activeCollageCellIndex] = reader.result;
+      collagePhotoOffsets[activeCollageCellIndex] = { x: 0.5, y: 0.5 };
       renderCollageEditor();
       photoInput.value = "";
     };
@@ -313,6 +314,7 @@ photoInput.addEventListener("change", () => {
       const reader = new FileReader();
       reader.onload = () => {
         collagePhotos[index] = reader.result;
+        collagePhotoOffsets[index] = { x: 0.5, y: 0.5 };
         remaining -= 1;
         if (remaining === 0) {
           renderCollageEditor();
@@ -423,14 +425,56 @@ const collageEditorModal = document.getElementById("collage-editor-modal");
 const collageEditorGrid = document.getElementById("collage-editor-grid");
 let activeTemplate = null;
 let collagePhotos = [];
+let collagePhotoOffsets = []; // parallel to collagePhotos: {x, y} in 0..1, like object-position
 let activeCollageCellIndex = null;
+
+function clamp01(v) {
+  return Math.min(1, Math.max(0, v));
+}
 
 function startCollageTemplate(tpl) {
   activeTemplate = tpl;
   collagePhotos = tpl.cells.map(() => null);
+  collagePhotoOffsets = tpl.cells.map(() => ({ x: 0.5, y: 0.5 }));
   photoInputMode = "collage-bulk";
   photoInput.multiple = true;
   photoInput.click();
+}
+
+function attachCollageDrag(imgEl, index) {
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startOffset = { x: 0.5, y: 0.5 };
+
+  imgEl.addEventListener("pointerdown", (event) => {
+    dragging = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    startOffset = { ...collagePhotoOffsets[index] };
+    imgEl.setPointerCapture(event.pointerId);
+  });
+
+  imgEl.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const rect = imgEl.getBoundingClientRect();
+    const scale = Math.max(rect.width / imgEl.naturalWidth, rect.height / imgEl.naturalHeight);
+    const overflowX = imgEl.naturalWidth * scale - rect.width;
+    const overflowY = imgEl.naturalHeight * scale - rect.height;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+
+    const next = { ...collagePhotoOffsets[index] };
+    if (overflowX > 0) next.x = clamp01(startOffset.x - deltaX / overflowX);
+    if (overflowY > 0) next.y = clamp01(startOffset.y - deltaY / overflowY);
+    collagePhotoOffsets[index] = next;
+    imgEl.style.objectPosition = `${next.x * 100}% ${next.y * 100}%`;
+  });
+
+  imgEl.addEventListener("pointerup", (event) => {
+    dragging = false;
+    imgEl.releasePointerCapture(event.pointerId);
+  });
 }
 
 function renderCollageEditor() {
@@ -446,6 +490,9 @@ function renderCollageEditor() {
     if (collagePhotos[index]) {
       const img = document.createElement("img");
       img.src = collagePhotos[index];
+      const offset = collagePhotoOffsets[index] || { x: 0.5, y: 0.5 };
+      img.style.objectPosition = `${offset.x * 100}% ${offset.y * 100}%`;
+      attachCollageDrag(img, index);
       cellEl.appendChild(img);
     }
 
@@ -489,7 +536,17 @@ document.getElementById("collage-done").addEventListener("click", async () => {
     if (!src) continue;
     const cell = activeTemplate.cells[i];
     const img = await loadImage(src);
-    drawCover(ctx, img, cell.x * canvasSize, cell.y * canvasSize, cell.w * canvasSize, cell.h * canvasSize);
+    const offset = collagePhotoOffsets[i] || { x: 0.5, y: 0.5 };
+    drawCover(
+      ctx,
+      img,
+      cell.x * canvasSize,
+      cell.y * canvasSize,
+      cell.w * canvasSize,
+      cell.h * canvasSize,
+      offset.x,
+      offset.y
+    );
   }
 
   pendingPhotos.push(canvas.toDataURL("image/png"));
@@ -788,12 +845,12 @@ function loadImage(src) {
   });
 }
 
-function drawCover(ctx, img, x, y, w, h) {
+function drawCover(ctx, img, x, y, w, h, offsetX = 0.5, offsetY = 0.5) {
   const scale = Math.max(w / img.width, h / img.height);
   const sw = w / scale;
   const sh = h / scale;
-  const sx = (img.width - sw) / 2;
-  const sy = (img.height - sh) / 2;
+  const sx = (img.width - sw) * offsetX;
+  const sy = (img.height - sh) * offsetY;
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 

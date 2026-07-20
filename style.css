@@ -419,7 +419,6 @@ body {
 .collage-cell {
   position: absolute;
   box-sizing: border-box;
-  border: 2px solid var(--bg);
   overflow: hidden;
   display: flex;
   align-items: center;

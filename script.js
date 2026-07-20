@@ -179,6 +179,30 @@ photoInput.addEventListener("change", () => {
     return;
   }
 
+  if (photoInputMode === "collage-bulk") {
+    const capacity = activeTemplate.cells.length;
+    const toFill = files.slice(0, capacity);
+    if (toFill.length === 0) {
+      photoInput.value = "";
+      return;
+    }
+    let remaining = toFill.length;
+    toFill.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        collagePhotos[index] = reader.result;
+        remaining -= 1;
+        if (remaining === 0) {
+          renderCollageEditor();
+          collageEditorModal.hidden = false;
+          photoInput.value = "";
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    return;
+  }
+
   const toAdd = files.slice(0, MAX_PHOTOS - pendingPhotos.length);
   let remaining = toAdd.length;
   if (remaining === 0) {
@@ -262,7 +286,7 @@ function renderTemplateGrid() {
     });
     thumb.addEventListener("click", () => {
       templateModal.hidden = true;
-      openCollageEditor(tpl);
+      startCollageTemplate(tpl);
     });
     templateGrid.appendChild(thumb);
   });
@@ -279,11 +303,12 @@ let activeTemplate = null;
 let collagePhotos = [];
 let activeCollageCellIndex = null;
 
-function openCollageEditor(tpl) {
+function startCollageTemplate(tpl) {
   activeTemplate = tpl;
   collagePhotos = tpl.cells.map(() => null);
-  renderCollageEditor();
-  collageEditorModal.hidden = false;
+  photoInputMode = "collage-bulk";
+  photoInput.multiple = true;
+  photoInput.click();
 }
 
 function renderCollageEditor() {
@@ -330,7 +355,6 @@ document.getElementById("collage-done").addEventListener("click", async () => {
   }
 
   const canvasSize = 640;
-  const gap = 6;
   const canvas = document.createElement("canvas");
   canvas.width = canvasSize;
   canvas.height = canvasSize;
@@ -343,14 +367,7 @@ document.getElementById("collage-done").addEventListener("click", async () => {
     if (!src) continue;
     const cell = activeTemplate.cells[i];
     const img = await loadImage(src);
-    drawCover(
-      ctx,
-      img,
-      cell.x * canvasSize + gap / 2,
-      cell.y * canvasSize + gap / 2,
-      cell.w * canvasSize - gap,
-      cell.h * canvasSize - gap
-    );
+    drawCover(ctx, img, cell.x * canvasSize, cell.y * canvasSize, cell.w * canvasSize, cell.h * canvasSize);
   }
 
   pendingPhotos.push(canvas.toDataURL("image/png"));

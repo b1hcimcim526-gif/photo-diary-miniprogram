@@ -117,11 +117,16 @@
   <div id="text-editor-modal" class="modal" hidden>
     <div class="modal-card text-editor-card">
       <p class="modal-title">给照片加文字</p>
-      <div class="text-editor-preview">
+      <div class="text-editor-preview" id="text-editor-preview">
         <img id="text-editor-image" alt="" />
         <div class="text-editor-overlay" id="text-editor-overlay-text"></div>
       </div>
+      <p class="text-editor-hint">拖动文字可调整位置</p>
       <textarea id="text-editor-input" class="text-editor-input" placeholder="输入文字…" rows="2"></textarea>
+      <label class="text-editor-size-row">
+        字号
+        <input type="range" id="text-editor-size" min="20" max="120" value="55" />
+      </label>
       <button type="button" class="hand-btn" id="text-editor-confirm">确定</button>
       <button type="button" class="icon-btn modal-close" id="text-editor-cancel">取消</button>
     </div>

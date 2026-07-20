@@ -499,21 +499,66 @@ document.getElementById("collage-done").addEventListener("click", async () => {
 
 // ---------- 给照片加文字 ----------
 const textEditorModal = document.getElementById("text-editor-modal");
+const textEditorPreview = document.getElementById("text-editor-preview");
 const textEditorImage = document.getElementById("text-editor-image");
 const textEditorOverlayText = document.getElementById("text-editor-overlay-text");
 const textEditorInput = document.getElementById("text-editor-input");
+const textEditorSize = document.getElementById("text-editor-size");
 let textEditorIndex = null;
+let textPos = { x: 0.5, y: 0.9 }; // fraction of the preview box, drag target
+let textSizeFrac = 0.055; // font size as a fraction of the photo's width
 
 function openTextEditor(index) {
   textEditorIndex = index;
   textEditorImage.src = pendingPhotos[index];
   textEditorInput.value = "";
   textEditorOverlayText.textContent = "";
+  textPos = { x: 0.5, y: 0.9 };
+  textSizeFrac = 0.055;
+  textEditorSize.value = 55;
+  updateOverlayPosition();
+  updateOverlaySize();
   textEditorModal.hidden = false;
+}
+
+function updateOverlayPosition() {
+  textEditorOverlayText.style.left = `${textPos.x * 100}%`;
+  textEditorOverlayText.style.top = `${textPos.y * 100}%`;
+}
+
+function updateOverlaySize() {
+  const px = Math.max(10, textEditorPreview.clientWidth * textSizeFrac);
+  textEditorOverlayText.style.fontSize = `${px}px`;
 }
 
 textEditorInput.addEventListener("input", () => {
   textEditorOverlayText.textContent = textEditorInput.value;
+});
+
+textEditorSize.addEventListener("input", () => {
+  textSizeFrac = Number(textEditorSize.value) / 1000;
+  updateOverlaySize();
+});
+
+let draggingText = false;
+
+textEditorOverlayText.addEventListener("pointerdown", (event) => {
+  draggingText = true;
+  textEditorOverlayText.setPointerCapture(event.pointerId);
+});
+
+textEditorOverlayText.addEventListener("pointermove", (event) => {
+  if (!draggingText) return;
+  const rect = textEditorPreview.getBoundingClientRect();
+  const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+  textPos = { x, y };
+  updateOverlayPosition();
+});
+
+textEditorOverlayText.addEventListener("pointerup", (event) => {
+  draggingText = false;
+  textEditorOverlayText.releasePointerCapture(event.pointerId);
 });
 
 document.getElementById("text-editor-cancel").addEventListener("click", () => {
@@ -550,7 +595,7 @@ document.getElementById("text-editor-confirm").addEventListener("click", async (
   const ctx = canvas.getContext("2d");
   ctx.drawImage(img, 0, 0);
 
-  const fontSize = Math.max(20, Math.round(img.width * 0.055));
+  const fontSize = Math.max(14, Math.round(img.width * textSizeFrac));
   ctx.font = `700 ${fontSize}px -apple-system, "PingFang SC", sans-serif`;
   ctx.textAlign = "center";
   ctx.lineJoin = "round";
@@ -558,15 +603,17 @@ document.getElementById("text-editor-confirm").addEventListener("click", async (
   const maxWidth = img.width * 0.86;
   const lines = wrapTextLines(ctx, text, maxWidth);
   const lineHeight = fontSize * 1.3;
-  const bottomPadding = img.height * 0.06;
+  const centerX = textPos.x * img.width;
+  const centerY = textPos.y * img.height;
+  const startY = centerY - (lineHeight * (lines.length - 1)) / 2 + fontSize * 0.35;
 
   lines.forEach((line, i) => {
-    const y = img.height - bottomPadding - (lines.length - 1 - i) * lineHeight;
+    const y = startY + i * lineHeight;
     ctx.lineWidth = fontSize * 0.18;
     ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
-    ctx.strokeText(line, img.width / 2, y);
+    ctx.strokeText(line, centerX, y);
     ctx.fillStyle = "#fff";
-    ctx.fillText(line, img.width / 2, y);
+    ctx.fillText(line, centerX, y);
   });
 
   pendingPhotos[textEditorIndex] = canvas.toDataURL("image/png");

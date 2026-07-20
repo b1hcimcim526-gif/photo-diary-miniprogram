@@ -603,10 +603,10 @@ body {
 
 .text-editor-overlay {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 12px;
-  padding: 0 12px;
+  left: 50%;
+  top: 90%;
+  transform: translate(-50%, -50%);
+  max-width: 86%;
   text-align: center;
   color: #fff;
   font-size: 18px;
@@ -614,7 +614,19 @@ body {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 8px rgba(0, 0, 0, 0.5);
   white-space: pre-wrap;
   word-break: break-word;
-  pointer-events: none;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.text-editor-overlay:active {
+  cursor: grabbing;
+}
+
+.text-editor-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin: -2px 0 0;
 }
 
 .text-editor-input {
@@ -627,4 +639,17 @@ body {
   color: var(--text);
   background: var(--card-bg);
   resize: none;
+}
+
+.text-editor-size-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.text-editor-size-row input[type="range"] {
+  flex: 1;
 }

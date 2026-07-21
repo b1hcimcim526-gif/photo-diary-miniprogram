@@ -6,6 +6,7 @@ const views = {
   record: document.getElementById("view-record"),
   "record-editor": document.getElementById("view-record-editor"),
   "diary-list": document.getElementById("view-diary-list"),
+  "diary-month": document.getElementById("view-diary-month"),
   "diary-calendar": document.getElementById("view-diary-calendar"),
 };
 
@@ -21,7 +22,8 @@ let pendingPhotoSources = []; // parallel to pendingPhotos: original upload, use
 let pendingPhotoTransforms = []; // parallel to pendingPhotos: { zoom, x, y }
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
-let monthLongImages = {}; // monthKey -> [dataURL, ...] for the current gallery render
+let currentMonthKey = null;
+let currentMonthLongImage = null;
 let calendarReturnView = "record";
 
 function todayStr() {
@@ -48,11 +50,17 @@ function showView(name) {
   Object.entries(views).forEach(([key, el]) => {
     el.classList.toggle("active", key === name);
   });
-  const showNav = name === "record" || name === "record-editor" || name === "diary-list" || name === "diary-calendar";
+  const showNav =
+    name === "record" ||
+    name === "record-editor" ||
+    name === "diary-list" ||
+    name === "diary-month" ||
+    name === "diary-calendar";
   bottomNav.hidden = !showNav;
   navItems.forEach((btn) => {
     const isRecordTab = btn.dataset.view === "record" && (name === "record" || name === "record-editor");
-    btn.classList.toggle("active", btn.dataset.view === name || isRecordTab);
+    const isDiaryTab = btn.dataset.view === "diary-list" && (name === "diary-list" || name === "diary-month");
+    btn.classList.toggle("active", btn.dataset.view === name || isRecordTab || isDiaryTab);
   });
 }
 
@@ -64,7 +72,7 @@ document.getElementById("btn-start-record").addEventListener("click", () => {
 
 document.getElementById("btn-browse-diary").addEventListener("click", () => {
   localStorage.setItem(ONBOARD_KEY, "1");
-  renderMonthGallery();
+  renderNotebookGrid();
   showView("diary-list");
 });
 
@@ -77,7 +85,7 @@ navItems.forEach((btn) => {
       showView("record");
     }
     if (view === "diary-list") {
-      renderMonthGallery();
+      renderNotebookGrid();
       showView("diary-list");
     }
   });
@@ -822,23 +830,33 @@ entryForm.addEventListener("submit", (event) => {
   showView("record");
 });
 
-// ---------- 日记本：按月长图预览 ----------
-const monthGallery = document.getElementById("month-gallery");
+// ---------- 日记本：书架首页 + 单月长图详情 ----------
+const notebookGrid = document.getElementById("notebook-grid");
 const galleryEmpty = document.getElementById("gallery-empty");
-
-function distributeEven(total, groups) {
-  const base = Math.floor(total / groups);
-  const remainder = total % groups;
-  const sizes = [];
-  for (let i = 0; i < groups; i++) {
-    sizes.push(base + (i < remainder ? 1 : 0));
-  }
-  return sizes;
-}
+const monthDetailTitle = document.getElementById("month-detail-title");
+const monthDetailImage = document.getElementById("month-detail-image");
 
 function formatMonthLabel(monthKey) {
   const [y, m] = monthKey.split("-");
   return `${y}年${parseInt(m, 10)}月`;
+}
+
+function formatShortDate(dateStr) {
+  const [, m, d] = dateStr.split("-");
+  return `${parseInt(m, 10)}月${parseInt(d, 10)}日`;
+}
+
+function buildMonthMap() {
+  const entries = loadEntries();
+  const dates = Object.keys(entries).sort(); // ascending, so photos read chronologically within a month
+  const monthMap = {};
+  dates.forEach((dateStr) => {
+    const monthKey = dateStr.slice(0, 7);
+    if (!monthMap[monthKey]) monthMap[monthKey] = { photos: [], lastDate: dateStr };
+    monthMap[monthKey].photos.push(...entries[dateStr].photos);
+    monthMap[monthKey].lastDate = dateStr;
+  });
+  return monthMap;
 }
 
 async function buildLongImage(photoSrcs) {
@@ -854,58 +872,62 @@ async function buildLongImage(photoSrcs) {
   return canvas.toDataURL("image/png");
 }
 
-async function renderMonthGallery() {
-  const entries = loadEntries();
-  const dates = Object.keys(entries).sort(); // ascending, so photos read chronologically within a month
-
-  const monthMap = {};
-  dates.forEach((dateStr) => {
-    const monthKey = dateStr.slice(0, 7);
-    if (!monthMap[monthKey]) monthMap[monthKey] = [];
-    monthMap[monthKey].push(...entries[dateStr].photos);
-  });
-
+function renderNotebookGrid() {
+  const monthMap = buildMonthMap();
   const monthKeys = Object.keys(monthMap).sort((a, b) => (a < b ? 1 : -1));
 
-  monthGallery.innerHTML = "";
+  notebookGrid.innerHTML = "";
   galleryEmpty.hidden = monthKeys.length > 0;
-  monthLongImages = {};
 
-  for (const monthKey of monthKeys) {
-    const photos = monthMap[monthKey];
-    const sizes = distributeEven(photos.length, Math.min(9, photos.length));
+  monthKeys.forEach((monthKey) => {
+    const { photos, lastDate } = monthMap[monthKey];
 
-    const section = document.createElement("div");
-    section.className = "month-section";
-    section.dataset.monthKey = monthKey;
+    const item = document.createElement("div");
+    item.className = "notebook-item";
+    item.addEventListener("click", () => openMonthDetail(monthKey, photos));
+
+    const cover = document.createElement("div");
+    cover.className = "notebook-cover";
+    const coverImg = document.createElement("img");
+    coverImg.src = photos[photos.length - 1];
+    cover.appendChild(coverImg);
+    const spine = document.createElement("div");
+    spine.className = "notebook-spine";
+    cover.appendChild(spine);
+    const star = document.createElement("span");
+    star.className = "notebook-star";
+    star.textContent = "★";
+    cover.appendChild(star);
+    item.appendChild(cover);
 
     const title = document.createElement("div");
-    title.className = "month-title";
+    title.className = "notebook-title";
     title.textContent = formatMonthLabel(monthKey);
-    section.appendChild(title);
+    item.appendChild(title);
 
-    const carousel = document.createElement("div");
-    carousel.className = "month-carousel";
-    section.appendChild(carousel);
-    monthGallery.appendChild(section);
+    const timestamp = document.createElement("div");
+    timestamp.className = "notebook-timestamp";
+    timestamp.textContent = formatShortDate(lastDate);
+    item.appendChild(timestamp);
 
-    const longImages = [];
-    let offset = 0;
-    for (const size of sizes) {
-      const groupPhotos = photos.slice(offset, offset + size);
-      offset += size;
-      const dataUrl = await buildLongImage(groupPhotos);
-      longImages.push(dataUrl);
-
-      const img = document.createElement("img");
-      img.className = "month-card";
-      img.src = dataUrl;
-      carousel.appendChild(img);
-    }
-
-    monthLongImages[monthKey] = longImages;
-  }
+    notebookGrid.appendChild(item);
+  });
 }
+
+async function openMonthDetail(monthKey, photos) {
+  currentMonthKey = monthKey;
+  currentMonthLongImage = null;
+  monthDetailTitle.textContent = formatMonthLabel(monthKey);
+  monthDetailImage.removeAttribute("src");
+  showView("diary-month");
+  currentMonthLongImage = await buildLongImage(photos);
+  monthDetailImage.src = currentMonthLongImage;
+}
+
+document.getElementById("btn-back-to-notebooks").addEventListener("click", () => {
+  renderNotebookGrid();
+  showView("diary-list");
+});
 
 // ---------- 日历（仅记录模式下用于选日期） ----------
 const calendarMonthLabel = document.getElementById("calendar-month-label");
@@ -991,35 +1013,15 @@ function downloadDataUrl(dataUrl, filename) {
   a.click();
 }
 
-function findActiveMonthSection() {
-  const sections = [...document.querySelectorAll(".month-section")];
-  let active = null;
-  let minDist = Infinity;
-  sections.forEach((sec) => {
-    const rect = sec.getBoundingClientRect();
-    const dist = Math.abs(rect.top);
-    if (rect.bottom > 0 && dist < minDist) {
-      minDist = dist;
-      active = sec;
-    }
-  });
-  return active;
-}
-
 document.getElementById("btn-export-month").addEventListener("click", () => {
-  const active = findActiveMonthSection();
-  if (!active) return;
-  const monthKey = active.dataset.monthKey;
-  const images = monthLongImages[monthKey] || [];
-  images.forEach((dataUrl, i) => {
-    downloadDataUrl(dataUrl, `plog-${monthKey}-part${i + 1}.png`);
-  });
+  if (!currentMonthLongImage || !currentMonthKey) return;
+  downloadDataUrl(currentMonthLongImage, `plog-${currentMonthKey}.png`);
 });
 
 // ---------- 初始化 ----------
 function init() {
   if (localStorage.getItem(ONBOARD_KEY)) {
-    renderMonthGallery();
+    renderNotebookGrid();
     showView("diary-list");
   } else {
     showView("onboarding");

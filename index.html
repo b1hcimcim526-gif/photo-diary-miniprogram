@@ -49,14 +49,25 @@
       </form>
     </section>
 
-    <!-- 日记本 - 按月长图预览（仅浏览和导出） -->
+    <!-- 日记本 - 书架首页（仅浏览和导出） -->
     <section id="view-diary-list" class="view">
       <header class="page-header">
         <span class="page-title">日记本</span>
+      </header>
+      <div id="notebook-grid" class="notebook-grid"></div>
+      <p id="gallery-empty" class="empty-state" hidden>还没有日记，去记录第一天吧～</p>
+    </section>
+
+    <!-- 日记本 - 单月长图详情 -->
+    <section id="view-diary-month" class="view">
+      <header class="page-header">
+        <button type="button" class="icon-btn" id="btn-back-to-notebooks">‹</button>
+        <span class="page-title" id="month-detail-title"></span>
         <button class="icon-btn" id="btn-export-month">导出</button>
       </header>
-      <div id="month-gallery" class="month-gallery"></div>
-      <p id="gallery-empty" class="empty-state" hidden>还没有日记，去记录第一天吧～</p>
+      <div class="month-detail-scroll" id="month-detail-scroll">
+        <img id="month-detail-image" alt="" />
+      </div>
     </section>
 
     <!-- 记录 - 日历选日期 -->

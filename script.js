@@ -1,8 +1,9 @@
-const STORAGE_KEY = "plog-entries"; // { "YYYY-MM-DD": { photos: [dataURL,...] } }
-const ONBOARD_KEY = "plog-onboarded";
+const SUPABASE_URL = "https://jmllhgkfzbrlelqqrvth.supabase.co";
+const SUPABASE_KEY = "sb_publishable_RYl5n4MQm3OP3MRFdgbHrQ_TZmQHFx6";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const views = {
-  onboarding: document.getElementById("view-onboarding"),
+  auth: document.getElementById("view-auth"),
   record: document.getElementById("view-record"),
   "record-editor": document.getElementById("view-record-editor"),
   "diary-list": document.getElementById("view-diary-list"),
@@ -25,6 +26,7 @@ calendarMonth.setDate(1);
 let currentMonthKey = null;
 let currentMonthLongImage = null;
 let calendarReturnView = "record";
+let entriesCache = {}; // "YYYY-MM-DD" -> { photos: [dataURL,...] }, mirrors the Supabase "entries" table
 
 function todayStr() {
   return formatISO(new Date());
@@ -38,12 +40,38 @@ function formatISO(d) {
 }
 
 function loadEntries() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? JSON.parse(raw) : {};
+  return entriesCache;
 }
 
-function saveEntries(entries) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+async function refreshEntriesCache() {
+  const { data, error } = await supabaseClient.from("entries").select("date, photos");
+  if (error) {
+    console.error(error);
+    entriesCache = {};
+    return;
+  }
+  const map = {};
+  (data || []).forEach((row) => {
+    map[row.date] = { photos: row.photos || [] };
+  });
+  entriesCache = map;
+}
+
+async function upsertEntryRemote(dateStr, photos) {
+  const {
+    data: { user },
+  } = await supabaseClient.auth.getUser();
+  const { error } = await supabaseClient
+    .from("entries")
+    .upsert({ user_id: user.id, date: dateStr, photos }, { onConflict: "user_id,date" });
+  if (error) throw error;
+  entriesCache[dateStr] = { photos };
+}
+
+async function deleteEntryRemote(dateStr) {
+  const { error } = await supabaseClient.from("entries").delete().eq("date", dateStr);
+  if (error) throw error;
+  delete entriesCache[dateStr];
 }
 
 function showView(name) {
@@ -64,16 +92,42 @@ function showView(name) {
   });
 }
 
-// ---------- 引导页 ----------
-document.getElementById("btn-start-record").addEventListener("click", () => {
-  localStorage.setItem(ONBOARD_KEY, "1");
-  openRecordEditor(todayStr());
+// ---------- 登录 ----------
+const authEmailInput = document.getElementById("auth-email");
+const authPasswordInput = document.getElementById("auth-password");
+const authError = document.getElementById("auth-error");
+
+function showAuthError(message) {
+  authError.textContent = message;
+  authError.hidden = false;
+}
+
+document.getElementById("auth-login-btn").addEventListener("click", async () => {
+  authError.hidden = true;
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email: authEmailInput.value.trim(),
+    password: authPasswordInput.value,
+  });
+  if (error) showAuthError(error.message);
 });
 
-document.getElementById("btn-browse-diary").addEventListener("click", () => {
-  localStorage.setItem(ONBOARD_KEY, "1");
-  renderNotebookGrid();
-  showView("diary-list");
+document.getElementById("auth-signup-btn").addEventListener("click", async () => {
+  authError.hidden = true;
+  const { data, error } = await supabaseClient.auth.signUp({
+    email: authEmailInput.value.trim(),
+    password: authPasswordInput.value,
+  });
+  if (error) {
+    showAuthError(error.message);
+    return;
+  }
+  if (!data.session) {
+    showAuthError("注册成功，请去邮箱点验证链接，验证后回来登录");
+  }
+});
+
+document.getElementById("btn-logout").addEventListener("click", async () => {
+  await supabaseClient.auth.signOut();
 });
 
 // ---------- 底部 Tab ----------
@@ -817,20 +871,17 @@ document.getElementById("zoom-editor-confirm").addEventListener("click", async (
   renderPhotoCarousel();
 });
 
-entryForm.addEventListener("submit", (event) => {
+entryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const entries = loadEntries();
-  if (pendingPhotos.length === 0) {
-    delete entries[currentRecordDate];
-  } else {
-    entries[currentRecordDate] = { photos: [...pendingPhotos] };
-  }
-
   try {
-    saveEntries(entries);
+    if (pendingPhotos.length === 0) {
+      await deleteEntryRemote(currentRecordDate);
+    } else {
+      await upsertEntryRemote(currentRecordDate, [...pendingPhotos]);
+    }
   } catch (err) {
-    alert("保存失败：本地存储空间不够了，试试删掉几张照片，或者给部分照片换成压缩率更高的图片再保存。");
+    alert("保存失败：" + (err.message || "网络或云端存储出错，请重试"));
     return;
   }
 
@@ -1026,13 +1077,32 @@ document.getElementById("btn-export-month").addEventListener("click", () => {
   downloadDataUrl(currentMonthLongImage, `plog-${currentMonthKey}.png`);
 });
 
-// ---------- 初始化 ----------
-function init() {
-  if (localStorage.getItem(ONBOARD_KEY)) {
-    renderNotebookGrid();
-    showView("diary-list");
+// ---------- 初始化 / 登录状态 ----------
+async function enterApp() {
+  await refreshEntriesCache();
+  renderRecordFeed();
+  showView("record");
+}
+
+supabaseClient.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_IN") {
+    enterApp();
+  } else if (event === "SIGNED_OUT") {
+    entriesCache = {};
+    authEmailInput.value = "";
+    authPasswordInput.value = "";
+    showView("auth");
+  }
+});
+
+async function init() {
+  const {
+    data: { session },
+  } = await supabaseClient.auth.getSession();
+  if (session) {
+    await enterApp();
   } else {
-    showView("onboarding");
+    showView("auth");
   }
 }
 

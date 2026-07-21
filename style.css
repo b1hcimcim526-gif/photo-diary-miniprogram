@@ -36,8 +36,8 @@ body {
   display: block;
 }
 
-/* 引导页 */
-#view-onboarding.active {
+/* 登录页 */
+#view-auth.active {
   display: flex;
 }
 
@@ -55,6 +55,26 @@ body {
   font-size: 26px;
   color: var(--accent-dark);
   margin: 0 0 12px;
+}
+
+.auth-input {
+  width: 100%;
+  max-width: 220px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: #fff;
+}
+
+.auth-error {
+  max-width: 260px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--danger, #c0392b);
+  margin: 4px 0 0;
 }
 
 /* 手写风格按钮 */

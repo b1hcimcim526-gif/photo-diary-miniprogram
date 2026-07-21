@@ -9,12 +9,15 @@
 <body>
   <div class="app">
 
-    <!-- 引导页 -->
-    <section id="view-onboarding" class="view">
+    <!-- 登录页 -->
+    <section id="view-auth" class="view">
       <div class="onboarding">
         <h1 class="onboarding-title">用照片记录生活</h1>
-        <button class="hand-btn" id="btn-start-record">开始记录</button>
-        <button class="hand-btn hand-btn-secondary" id="btn-browse-diary">翻阅日记</button>
+        <input type="email" id="auth-email" class="auth-input" placeholder="邮箱" autocomplete="email" />
+        <input type="password" id="auth-password" class="auth-input" placeholder="密码" autocomplete="current-password" />
+        <button class="hand-btn" id="auth-login-btn">登录</button>
+        <button class="hand-btn hand-btn-secondary" id="auth-signup-btn">注册新账号</button>
+        <p class="auth-error" id="auth-error" hidden></p>
       </div>
     </section>
 
@@ -54,6 +57,7 @@
     <section id="view-diary-list" class="view">
       <header class="page-header">
         <span class="page-title">日记本</span>
+        <button class="icon-btn" id="btn-logout">退出</button>
       </header>
       <div id="notebook-grid" class="notebook-grid"></div>
       <p id="gallery-empty" class="empty-state" hidden>还没有日记，去记录第一天吧～</p>
@@ -162,6 +166,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

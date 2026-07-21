@@ -182,6 +182,7 @@ const photoCarousel = document.getElementById("photo-carousel");
 const photoInput = document.getElementById("photo-input");
 const entryForm = document.getElementById("entry-form");
 const btnAddPhoto = document.getElementById("btn-add-photo");
+const photoCountBadge = document.getElementById("photo-count-badge");
 const recordDateLabel = document.getElementById("record-date-label");
 
 function formatFullDateLabel(dateStr) {
@@ -222,6 +223,7 @@ document.getElementById("btn-open-calendar-picker-home").addEventListener("click
 function renderPhotoCarousel(scrollToEnd) {
   photoCarousel.innerHTML = "";
   btnAddPhoto.hidden = pendingPhotos.length >= MAX_PHOTOS;
+  photoCountBadge.textContent = `${pendingPhotos.length}/${MAX_PHOTOS}`;
 
   if (pendingPhotos.length === 0) {
     const blank = document.createElement("div");
@@ -388,7 +390,7 @@ async function renderPhotoTransform(srcDataUrl, transform) {
   const dy = overflowY > 0 ? -overflowY * transform.y : (CANVAS_H - dh) / 2;
 
   ctx.drawImage(img, dx, dy, dw, dh);
-  return canvas.toDataURL("image/png");
+  return canvas.toDataURL("image/jpeg", 0.85);
 }
 
 // ---------- 拼图模板 ----------
@@ -593,7 +595,7 @@ document.getElementById("collage-done").addEventListener("click", async () => {
     );
   }
 
-  const collageResult = canvas.toDataURL("image/png");
+  const collageResult = canvas.toDataURL("image/jpeg", 0.85);
   pendingPhotos.push(collageResult);
   pendingPhotoSources.push(collageResult);
   pendingPhotoTransforms.push({ zoom: 1, x: 0.5, y: 0.5 });
@@ -720,7 +722,7 @@ document.getElementById("text-editor-confirm").addEventListener("click", async (
     ctx.fillText(line, centerX, y);
   });
 
-  const withText = canvas.toDataURL("image/png");
+  const withText = canvas.toDataURL("image/jpeg", 0.85);
   pendingPhotos[textEditorIndex] = withText;
   pendingPhotoSources[textEditorIndex] = withText;
   renderPhotoCarousel();
@@ -824,7 +826,13 @@ entryForm.addEventListener("submit", (event) => {
   } else {
     entries[currentRecordDate] = { photos: [...pendingPhotos] };
   }
-  saveEntries(entries);
+
+  try {
+    saveEntries(entries);
+  } catch (err) {
+    alert("保存失败：本地存储空间不够了，试试删掉几张照片，或者给部分照片换成压缩率更高的图片再保存。");
+    return;
+  }
 
   renderRecordFeed();
   showView("record");

@@ -13,7 +13,7 @@ const views = {
 const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
-const MAX_PHOTOS = 9;
+const MAX_PHOTOS = 18;
 const CANVAS_W = 720;
 const CANVAS_H = 960; // 3:4
 

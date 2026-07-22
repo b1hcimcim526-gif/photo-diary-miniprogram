@@ -452,6 +452,8 @@ function readFileAsDataUrl(file) {
   });
 }
 
+const MAX_PHOTO_EDGE = 1600; // cap long edge so a day's worth of photos stays a reasonable upload size
+
 async function renderPhotoOriginal(srcDataUrl) {
   const img = await loadImage(srcDataUrl);
   const ratio = img.width / img.height;
@@ -465,18 +467,18 @@ async function renderPhotoOriginal(srcDataUrl) {
     cropH = img.width / targetRatio;
   }
 
-  if (cropW === img.width && cropH === img.height) {
-    return srcDataUrl;
-  }
+  const downscale = Math.min(1, MAX_PHOTO_EDGE / Math.max(cropW, cropH));
+  const outW = Math.round(cropW * downscale);
+  const outH = Math.round(cropH * downscale);
 
   const canvas = document.createElement("canvas");
-  canvas.width = cropW;
-  canvas.height = cropH;
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext("2d");
   const sx = (img.width - cropW) / 2;
   const sy = (img.height - cropH) / 2;
-  ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
-  return canvas.toDataURL("image/png");
+  ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, outW, outH);
+  return canvas.toDataURL("image/jpeg", 0.85);
 }
 
 // ---------- 拼图模板 ----------

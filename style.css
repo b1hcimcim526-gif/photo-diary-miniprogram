@@ -264,6 +264,29 @@ body {
   gap: 12px;
 }
 
+.group-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.group-tab {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.group-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 .editor-preview-stage {
   position: relative;
   border-radius: 14px;

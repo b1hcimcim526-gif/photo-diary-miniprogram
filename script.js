@@ -289,16 +289,11 @@ document.getElementById("btn-back-to-feed").addEventListener("click", () => {
 
 // ---------- 创作栏编辑页 ----------
 let currentRecordDate = todayStr();
-let activePhotoIndex = 0;
 const photoInput = document.getElementById("photo-input");
 const entryForm = document.getElementById("entry-form");
-const photoCountBadge = document.getElementById("photo-count-badge");
 const recordDateLabel = document.getElementById("record-date-label");
-const editorPreviewImg = document.getElementById("editor-preview-img");
-const editorPreviewEmpty = document.getElementById("editor-preview-empty");
-const editorThumbRow = document.getElementById("editor-thumb-row");
-const btnRemoveCurrent = document.getElementById("btn-remove-current");
-const groupTabs = document.getElementById("group-tabs");
+const groupGrids = document.getElementById("group-grids");
+const GROUP_LABELS = ["组1", "组2", "组3"];
 
 function formatFullDateLabel(dateStr) {
   const [y, m, d] = dateStr.split("-");
@@ -318,26 +313,7 @@ function loadRecordForm(dateStr) {
   pendingGroups = entry ? entry.groups.map((g) => [...g]) : [[], [], []];
   activeGroupIndex = 0;
   pendingPhotos = pendingGroups[activeGroupIndex];
-  activePhotoIndex = 0;
-  renderPhotoEditor();
-}
-
-function renderGroupTabs() {
-  groupTabs.innerHTML = "";
-  for (let i = 0; i < MAX_GROUPS; i++) {
-    const count = pendingGroups[i].length;
-    const tab = document.createElement("button");
-    tab.type = "button";
-    tab.className = "group-tab" + (i === activeGroupIndex ? " active" : "");
-    tab.textContent = count > 0 ? `组${i + 1} · ${count}` : `组${i + 1}`;
-    tab.addEventListener("click", () => {
-      activeGroupIndex = i;
-      pendingPhotos = pendingGroups[activeGroupIndex];
-      activePhotoIndex = 0;
-      renderPhotoEditor();
-    });
-    groupTabs.appendChild(tab);
-  }
+  renderGroupGrids();
 }
 
 function openCalendarFromRecord(returnView) {
@@ -354,63 +330,56 @@ document.getElementById("btn-open-calendar-picker-home").addEventListener("click
   openCalendarFromRecord("record");
 });
 
-function renderPhotoEditor(selectIndex) {
-  if (typeof selectIndex === "number") {
-    activePhotoIndex = selectIndex;
+function renderGroupGrids() {
+  groupGrids.innerHTML = "";
+
+  for (let g = 0; g < MAX_GROUPS; g++) {
+    const col = document.createElement("div");
+    col.className = "group-grid-col";
+
+    const label = document.createElement("div");
+    label.className = "group-grid-label";
+    label.textContent = GROUP_LABELS[g];
+    col.appendChild(label);
+
+    const grid = document.createElement("div");
+    grid.className = "group-grid";
+
+    pendingGroups[g].forEach((src, index) => {
+      const cell = document.createElement("div");
+      cell.className = "group-grid-cell";
+      const img = document.createElement("img");
+      img.src = src;
+      cell.appendChild(img);
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "group-grid-remove";
+      removeBtn.textContent = "×";
+      removeBtn.addEventListener("click", () => {
+        pendingGroups[g].splice(index, 1);
+        renderGroupGrids();
+      });
+      cell.appendChild(removeBtn);
+      grid.appendChild(cell);
+    });
+
+    if (pendingGroups[g].length < MAX_PHOTOS) {
+      const addCell = document.createElement("button");
+      addCell.type = "button";
+      addCell.className = "group-grid-add";
+      addCell.textContent = "+";
+      addCell.addEventListener("click", () => {
+        activeGroupIndex = g;
+        pendingPhotos = pendingGroups[g];
+        addMenuModal.hidden = false;
+      });
+      grid.appendChild(addCell);
+    }
+
+    col.appendChild(grid);
+    groupGrids.appendChild(col);
   }
-  if (activePhotoIndex >= pendingPhotos.length) {
-    activePhotoIndex = pendingPhotos.length - 1;
-  }
-  if (activePhotoIndex < 0) {
-    activePhotoIndex = 0;
-  }
-
-  photoCountBadge.hidden = pendingPhotos.length === 0;
-  photoCountBadge.textContent = `${pendingPhotos.length}/${MAX_PHOTOS}`;
-
-  if (pendingPhotos.length === 0) {
-    editorPreviewImg.hidden = true;
-    editorPreviewImg.removeAttribute("src");
-    editorPreviewEmpty.hidden = false;
-    btnRemoveCurrent.hidden = true;
-  } else {
-    editorPreviewEmpty.hidden = true;
-    editorPreviewImg.hidden = false;
-    editorPreviewImg.src = pendingPhotos[activePhotoIndex];
-    btnRemoveCurrent.hidden = false;
-  }
-
-  editorThumbRow.innerHTML = "";
-
-  const addThumb = document.createElement("button");
-  addThumb.type = "button";
-  addThumb.className = "editor-thumb-add";
-  addThumb.textContent = "+";
-  addThumb.hidden = pendingPhotos.length >= MAX_PHOTOS;
-  addThumb.addEventListener("click", () => {
-    addMenuModal.hidden = false;
-  });
-  editorThumbRow.appendChild(addThumb);
-
-  pendingPhotos.forEach((src, index) => {
-    const thumb = document.createElement("button");
-    thumb.type = "button";
-    thumb.className = "editor-thumb" + (index === activePhotoIndex ? " active" : "");
-    const img = document.createElement("img");
-    img.src = src;
-    thumb.appendChild(img);
-    thumb.addEventListener("click", () => renderPhotoEditor(index));
-    editorThumbRow.appendChild(thumb);
-  });
-
-  renderGroupTabs();
 }
-
-btnRemoveCurrent.addEventListener("click", () => {
-  if (pendingPhotos.length === 0) return;
-  pendingPhotos.splice(activePhotoIndex, 1);
-  renderPhotoEditor();
-});
 
 // ---------- 添加方式菜单 ----------
 const addMenuModal = document.getElementById("add-menu-modal");
@@ -491,7 +460,7 @@ photoInput.addEventListener("change", async () => {
     const composed = await renderPhotoOriginal(raw);
     pendingPhotos.push(composed);
   }
-  renderPhotoEditor(pendingPhotos.length - 1);
+  renderGroupGrids();
   photoInput.value = "";
 });
 
@@ -736,7 +705,7 @@ document.getElementById("collage-done").addEventListener("click", async () => {
 
   const collageResult = canvas.toDataURL("image/jpeg", 0.85);
   pendingPhotos.push(collageResult);
-  renderPhotoEditor(pendingPhotos.length - 1);
+  renderGroupGrids();
   collageEditorModal.hidden = true;
 });
 

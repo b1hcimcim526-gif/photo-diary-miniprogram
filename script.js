@@ -15,8 +15,20 @@ const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
 const MAX_PHOTOS = 18;
-const MAX_LANDSCAPE_RATIO = 16 / 9; // widest allowed before center-cropping
-const MAX_PORTRAIT_RATIO = 9 / 16; // tallest allowed before center-cropping
+const CANVAS_RATIOS = [1 / 1, 3 / 4, 4 / 3, 9 / 16, 16 / 9];
+
+function pickBestCanvasRatio(imgRatio) {
+  let best = CANVAS_RATIOS[0];
+  let bestDiff = Infinity;
+  for (const ratio of CANVAS_RATIOS) {
+    const diff = Math.abs(Math.log(imgRatio) - Math.log(ratio));
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = ratio;
+    }
+  }
+  return best;
+}
 
 let pendingPhotos = [];
 let calendarMonth = new Date(); // first-of-month cursor
@@ -443,13 +455,14 @@ function readFileAsDataUrl(file) {
 async function renderPhotoOriginal(srcDataUrl) {
   const img = await loadImage(srcDataUrl);
   const ratio = img.width / img.height;
+  const targetRatio = pickBestCanvasRatio(ratio);
 
   let cropW = img.width;
   let cropH = img.height;
-  if (ratio > MAX_LANDSCAPE_RATIO) {
-    cropW = img.height * MAX_LANDSCAPE_RATIO;
-  } else if (ratio < MAX_PORTRAIT_RATIO) {
-    cropH = img.width / MAX_PORTRAIT_RATIO;
+  if (ratio > targetRatio) {
+    cropW = img.height * targetRatio;
+  } else if (ratio < targetRatio) {
+    cropH = img.width / targetRatio;
   }
 
   if (cropW === img.width && cropH === img.height) {

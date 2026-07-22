@@ -149,36 +149,6 @@
     </div>
   </div>
 
-  <!-- 缩放照片 -->
-  <div id="zoom-editor-modal" class="modal" hidden>
-    <div class="modal-card zoom-editor-card">
-      <p class="modal-title">调整照片</p>
-      <div class="zoom-editor-preview" id="zoom-editor-preview">
-        <img id="zoom-editor-image" alt="" />
-      </div>
-      <p class="text-editor-hint">拖动照片可调整位置</p>
-      <label class="text-editor-size-row">
-        缩放
-        <input type="range" id="zoom-editor-scale" min="100" max="300" value="100" />
-      </label>
-      <button type="button" class="hand-btn" id="zoom-editor-confirm">确定</button>
-      <button type="button" class="icon-btn modal-close" id="zoom-editor-cancel">取消</button>
-    </div>
-  </div>
-
-  <!-- 画布比例 -->
-  <div id="ratio-modal" class="modal" hidden>
-    <div class="modal-card">
-      <p class="modal-title">选择画布比例</p>
-      <button type="button" class="hand-btn ratio-option" data-ratio="1:1">1:1</button>
-      <button type="button" class="hand-btn ratio-option" data-ratio="3:4">3:4</button>
-      <button type="button" class="hand-btn ratio-option" data-ratio="4:3">4:3</button>
-      <button type="button" class="hand-btn ratio-option" data-ratio="9:16">9:16</button>
-      <button type="button" class="hand-btn ratio-option" data-ratio="16:9">16:9</button>
-      <button type="button" class="icon-btn modal-close" id="ratio-close">取消</button>
-    </div>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="script.js"></script>
 </body>

@@ -273,6 +273,7 @@ body {
 }
 
 .editor-preview {
+  aspect-ratio: 3 / 4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -280,7 +281,9 @@ body {
 
 .editor-preview img {
   display: block;
-  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
   height: auto;
 }
 
@@ -289,14 +292,8 @@ body {
 }
 
 .editor-preview-empty {
-  min-height: 280px;
-  width: 100%;
   margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px;
-  box-sizing: border-box;
+  padding: 0 24px;
   text-align: center;
   font-size: 14px;
   color: var(--muted);

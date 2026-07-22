@@ -289,12 +289,13 @@ body {
   border-radius: 14px;
   overflow: hidden;
   position: relative;
-  background: var(--card-bg);
+  background: transparent;
 }
 
 .photo-card.blank {
   flex: 0 0 76%;
   scroll-snap-align: start;
+  background: var(--card-bg);
   border: 1px solid var(--border);
 }
 

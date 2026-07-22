@@ -450,8 +450,8 @@ async function renderPhotoTransform(srcDataUrl, transform) {
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  // leave the canvas transparent so photos with a different aspect ratio
+  // than the 3:4 frame get a see-through border instead of a white one
 
   const containScale = Math.min(CANVAS_W / img.width, CANVAS_H / img.height);
   const scale = containScale * transform.zoom;
@@ -463,7 +463,7 @@ async function renderPhotoTransform(srcDataUrl, transform) {
   const dy = overflowY > 0 ? -overflowY * transform.y : (CANVAS_H - dh) / 2;
 
   ctx.drawImage(img, dx, dy, dw, dh);
-  return canvas.toDataURL("image/jpeg", 0.85);
+  return canvas.toDataURL("image/png");
 }
 
 // ---------- 拼图模板 ----------

@@ -207,11 +207,28 @@ body {
   overflow: hidden;
 }
 
-.feed-grid img {
-  width: 100%;
+.feed-grid-cell {
+  position: relative;
   aspect-ratio: 1;
+}
+
+.feed-grid-cell img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.feed-grid-more {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .feed-add-placeholder {

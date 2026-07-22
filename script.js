@@ -213,10 +213,21 @@ function buildFeedRow(dateStr, entry) {
   if (entry) {
     const grid = document.createElement("div");
     grid.className = "feed-grid";
-    entry.photos.slice(0, 9).forEach((src) => {
+    const visible = entry.photos.slice(0, 9);
+    const hiddenCount = entry.photos.length - visible.length;
+    visible.forEach((src, index) => {
+      const cell = document.createElement("div");
+      cell.className = "feed-grid-cell";
       const img = document.createElement("img");
       img.src = src;
-      grid.appendChild(img);
+      cell.appendChild(img);
+      if (index === visible.length - 1 && hiddenCount > 0) {
+        const more = document.createElement("span");
+        more.className = "feed-grid-more";
+        more.textContent = `+${hiddenCount}`;
+        cell.appendChild(more);
+      }
+      grid.appendChild(cell);
     });
     content.appendChild(grid);
   } else {

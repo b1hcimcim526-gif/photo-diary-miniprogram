@@ -102,21 +102,29 @@ function showAuthError(message) {
   authError.hidden = false;
 }
 
+function readAuthCredentials() {
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+  if (!email || !password) {
+    showAuthError("请输入邮箱和密码");
+    return null;
+  }
+  return { email, password };
+}
+
 document.getElementById("auth-login-btn").addEventListener("click", async () => {
   authError.hidden = true;
-  const { error } = await supabaseClient.auth.signInWithPassword({
-    email: authEmailInput.value.trim(),
-    password: authPasswordInput.value,
-  });
+  const credentials = readAuthCredentials();
+  if (!credentials) return;
+  const { error } = await supabaseClient.auth.signInWithPassword(credentials);
   if (error) showAuthError(error.message);
 });
 
 document.getElementById("auth-signup-btn").addEventListener("click", async () => {
   authError.hidden = true;
-  const { data, error } = await supabaseClient.auth.signUp({
-    email: authEmailInput.value.trim(),
-    password: authPasswordInput.value,
-  });
+  const credentials = readAuthCredentials();
+  if (!credentials) return;
+  const { data, error } = await supabaseClient.auth.signUp(credentials);
   if (error) {
     showAuthError(error.message);
     return;

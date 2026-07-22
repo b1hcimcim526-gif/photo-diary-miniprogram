@@ -15,12 +15,19 @@ const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
 const MAX_PHOTOS = 18;
-const CANVAS_W = 720;
-const CANVAS_H = 960; // 3:4
+const DEFAULT_RATIO = "3:4";
+const RATIO_PRESETS = {
+  "1:1": { w: 960, h: 960 },
+  "3:4": { w: 720, h: 960 },
+  "4:3": { w: 960, h: 720 },
+  "9:16": { w: 540, h: 960 },
+  "16:9": { w: 960, h: 540 },
+};
 
 let pendingPhotos = [];
 let pendingPhotoSources = []; // parallel to pendingPhotos: original upload, used for re-zooming
 let pendingPhotoTransforms = []; // parallel to pendingPhotos: { zoom, x, y }
+let pendingPhotoRatios = []; // parallel to pendingPhotos: "1:1" | "3:4" | "4:3" | "9:16" | "16:9"
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
 let currentMonthKey = null;
@@ -276,6 +283,7 @@ function loadRecordForm(dateStr) {
   pendingPhotos = entry ? [...entry.photos] : [];
   pendingPhotoSources = entry ? [...entry.photos] : [];
   pendingPhotoTransforms = entry ? entry.photos.map(() => ({ zoom: 1, x: 0.5, y: 0.5 })) : [];
+  pendingPhotoRatios = entry ? entry.photos.map(() => DEFAULT_RATIO) : [];
   renderPhotoCarousel();
 }
 
@@ -311,6 +319,7 @@ function renderPhotoCarousel(scrollToEnd) {
 
     const card = document.createElement("div");
     card.className = "photo-card";
+    card.style.aspectRatio = (pendingPhotoRatios[index] || DEFAULT_RATIO).replace(":", " / ");
     const img = document.createElement("img");
     img.src = src;
     img.addEventListener("click", () => openZoomEditor(index));
@@ -322,6 +331,7 @@ function renderPhotoCarousel(scrollToEnd) {
       pendingPhotos.splice(index, 1);
       pendingPhotoSources.splice(index, 1);
       pendingPhotoTransforms.splice(index, 1);
+      pendingPhotoRatios.splice(index, 1);
       renderPhotoCarousel();
     });
     card.appendChild(img);
@@ -336,6 +346,12 @@ function renderPhotoCarousel(scrollToEnd) {
     textBtn.textContent = "Aa 添加文字";
     textBtn.addEventListener("click", () => openTextEditor(index));
     footer.appendChild(textBtn);
+    const ratioBtn = document.createElement("button");
+    ratioBtn.type = "button";
+    ratioBtn.className = "photo-text-btn";
+    ratioBtn.textContent = "⛶ 画布比例";
+    ratioBtn.addEventListener("click", () => openRatioPicker(index));
+    footer.appendChild(ratioBtn);
     item.appendChild(footer);
 
     photoCarousel.appendChild(item);
@@ -427,10 +443,11 @@ photoInput.addEventListener("change", async () => {
   for (const file of toAdd) {
     const raw = await readFileAsDataUrl(file);
     const transform = { zoom: 1, x: 0.5, y: 0.5 };
-    const composed = await renderPhotoTransform(raw, transform);
+    const composed = await renderPhotoTransform(raw, transform, DEFAULT_RATIO);
     pendingPhotos.push(composed);
     pendingPhotoSources.push(raw);
     pendingPhotoTransforms.push(transform);
+    pendingPhotoRatios.push(DEFAULT_RATIO);
   }
   renderPhotoCarousel(true);
   photoInput.value = "";
@@ -444,23 +461,24 @@ function readFileAsDataUrl(file) {
   });
 }
 
-async function renderPhotoTransform(srcDataUrl, transform) {
+async function renderPhotoTransform(srcDataUrl, transform, ratio = DEFAULT_RATIO) {
+  const { w: canvasW, h: canvasH } = RATIO_PRESETS[ratio] || RATIO_PRESETS[DEFAULT_RATIO];
   const img = await loadImage(srcDataUrl);
   const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
+  canvas.width = canvasW;
+  canvas.height = canvasH;
   const ctx = canvas.getContext("2d");
   // leave the canvas transparent so photos with a different aspect ratio
-  // than the 3:4 frame get a see-through border instead of a white one
+  // than the chosen frame get a see-through border instead of a white one
 
-  const containScale = Math.min(CANVAS_W / img.width, CANVAS_H / img.height);
+  const containScale = Math.min(canvasW / img.width, canvasH / img.height);
   const scale = containScale * transform.zoom;
   const dw = img.width * scale;
   const dh = img.height * scale;
-  const overflowX = Math.max(0, dw - CANVAS_W);
-  const overflowY = Math.max(0, dh - CANVAS_H);
-  const dx = overflowX > 0 ? -overflowX * transform.x : (CANVAS_W - dw) / 2;
-  const dy = overflowY > 0 ? -overflowY * transform.y : (CANVAS_H - dh) / 2;
+  const overflowX = Math.max(0, dw - canvasW);
+  const overflowY = Math.max(0, dh - canvasH);
+  const dx = overflowX > 0 ? -overflowX * transform.x : (canvasW - dw) / 2;
+  const dy = overflowY > 0 ? -overflowY * transform.y : (canvasH - dh) / 2;
 
   ctx.drawImage(img, dx, dy, dw, dh);
   return canvas.toDataURL("image/png");
@@ -672,6 +690,7 @@ document.getElementById("collage-done").addEventListener("click", async () => {
   pendingPhotos.push(collageResult);
   pendingPhotoSources.push(collageResult);
   pendingPhotoTransforms.push({ zoom: 1, x: 0.5, y: 0.5 });
+  pendingPhotoRatios.push("1:1");
   renderPhotoCarousel(true);
   collageEditorModal.hidden = true;
 });
@@ -813,6 +832,7 @@ function openZoomEditor(index) {
   zoomEditorIndex = index;
   zoomTransform = { ...pendingPhotoTransforms[index] };
   zoomEditorScale.value = Math.round(zoomTransform.zoom * 100);
+  zoomEditorPreview.style.aspectRatio = (pendingPhotoRatios[index] || DEFAULT_RATIO).replace(":", " / ");
   zoomEditorImage.onload = () => updateZoomPreview();
   zoomEditorImage.src = pendingPhotoSources[index];
   zoomEditorModal.hidden = false;
@@ -885,9 +905,37 @@ document.getElementById("zoom-editor-cancel").addEventListener("click", () => {
 
 document.getElementById("zoom-editor-confirm").addEventListener("click", async () => {
   pendingPhotoTransforms[zoomEditorIndex] = { ...zoomTransform };
-  pendingPhotos[zoomEditorIndex] = await renderPhotoTransform(pendingPhotoSources[zoomEditorIndex], zoomTransform);
+  pendingPhotos[zoomEditorIndex] = await renderPhotoTransform(
+    pendingPhotoSources[zoomEditorIndex],
+    zoomTransform,
+    pendingPhotoRatios[zoomEditorIndex]
+  );
   zoomEditorModal.hidden = true;
   renderPhotoCarousel();
+});
+
+// ---------- 画布比例 ----------
+const ratioModal = document.getElementById("ratio-modal");
+let ratioEditorIndex = null;
+
+function openRatioPicker(index) {
+  ratioEditorIndex = index;
+  ratioModal.hidden = false;
+}
+
+document.getElementById("ratio-close").addEventListener("click", () => {
+  ratioModal.hidden = true;
+});
+
+document.querySelectorAll(".ratio-option").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const ratio = btn.dataset.ratio;
+    const index = ratioEditorIndex;
+    ratioModal.hidden = true;
+    pendingPhotoRatios[index] = ratio;
+    pendingPhotos[index] = await renderPhotoTransform(pendingPhotoSources[index], pendingPhotoTransforms[index], ratio);
+    renderPhotoCarousel();
+  });
 });
 
 entryForm.addEventListener("submit", async (event) => {

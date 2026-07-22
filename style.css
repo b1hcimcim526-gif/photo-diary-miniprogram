@@ -310,6 +310,7 @@ body {
 .photo-card-footer {
   display: flex;
   justify-content: center;
+  gap: 8px;
 }
 
 .photo-text-btn {

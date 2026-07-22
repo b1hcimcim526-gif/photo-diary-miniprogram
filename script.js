@@ -249,12 +249,15 @@ document.getElementById("btn-back-to-feed").addEventListener("click", () => {
 
 // ---------- 创作栏编辑页 ----------
 let currentRecordDate = todayStr();
-const photoCarousel = document.getElementById("photo-carousel");
+let activePhotoIndex = 0;
 const photoInput = document.getElementById("photo-input");
 const entryForm = document.getElementById("entry-form");
-const btnAddPhoto = document.getElementById("btn-add-photo");
 const photoCountBadge = document.getElementById("photo-count-badge");
 const recordDateLabel = document.getElementById("record-date-label");
+const editorPreviewImg = document.getElementById("editor-preview-img");
+const editorPreviewEmpty = document.getElementById("editor-preview-empty");
+const editorThumbRow = document.getElementById("editor-thumb-row");
+const btnRemoveCurrent = document.getElementById("btn-remove-current");
 
 function formatFullDateLabel(dateStr) {
   const [y, m, d] = dateStr.split("-");
@@ -272,7 +275,8 @@ function loadRecordForm(dateStr) {
   const entries = loadEntries();
   const entry = entries[dateStr];
   pendingPhotos = entry ? [...entry.photos] : [];
-  renderPhotoCarousel();
+  activePhotoIndex = 0;
+  renderPhotoEditor();
 }
 
 function openCalendarFromRecord(returnView) {
@@ -289,63 +293,65 @@ document.getElementById("btn-open-calendar-picker-home").addEventListener("click
   openCalendarFromRecord("record");
 });
 
-function renderPhotoCarousel(scrollToEnd) {
-  photoCarousel.innerHTML = "";
-  btnAddPhoto.hidden = pendingPhotos.length >= MAX_PHOTOS;
+function renderPhotoEditor(selectIndex) {
+  if (typeof selectIndex === "number") {
+    activePhotoIndex = selectIndex;
+  }
+  if (activePhotoIndex >= pendingPhotos.length) {
+    activePhotoIndex = pendingPhotos.length - 1;
+  }
+  if (activePhotoIndex < 0) {
+    activePhotoIndex = 0;
+  }
+
+  photoCountBadge.hidden = pendingPhotos.length === 0;
   photoCountBadge.textContent = `${pendingPhotos.length}/${MAX_PHOTOS}`;
 
   if (pendingPhotos.length === 0) {
-    const blank = document.createElement("div");
-    blank.className = "photo-card blank";
-    photoCarousel.appendChild(blank);
-    return;
+    editorPreviewImg.hidden = true;
+    editorPreviewImg.removeAttribute("src");
+    editorPreviewEmpty.hidden = false;
+    btnRemoveCurrent.hidden = true;
+  } else {
+    editorPreviewEmpty.hidden = true;
+    editorPreviewImg.hidden = false;
+    editorPreviewImg.src = pendingPhotos[activePhotoIndex];
+    btnRemoveCurrent.hidden = false;
   }
+
+  editorThumbRow.innerHTML = "";
+
+  const addThumb = document.createElement("button");
+  addThumb.type = "button";
+  addThumb.className = "editor-thumb-add";
+  addThumb.textContent = "+";
+  addThumb.hidden = pendingPhotos.length >= MAX_PHOTOS;
+  addThumb.addEventListener("click", () => {
+    addMenuModal.hidden = false;
+  });
+  editorThumbRow.appendChild(addThumb);
 
   pendingPhotos.forEach((src, index) => {
-    const item = document.createElement("div");
-    item.className = "photo-item";
-
-    const card = document.createElement("div");
-    card.className = "photo-card";
+    const thumb = document.createElement("button");
+    thumb.type = "button";
+    thumb.className = "editor-thumb" + (index === activePhotoIndex ? " active" : "");
     const img = document.createElement("img");
     img.src = src;
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "photo-remove";
-    removeBtn.textContent = "×";
-    removeBtn.addEventListener("click", () => {
-      pendingPhotos.splice(index, 1);
-      renderPhotoCarousel();
-    });
-    card.appendChild(img);
-    card.appendChild(removeBtn);
-    item.appendChild(card);
-
-    const footer = document.createElement("div");
-    footer.className = "photo-card-footer";
-    const textBtn = document.createElement("button");
-    textBtn.type = "button";
-    textBtn.className = "photo-text-btn";
-    textBtn.textContent = "Aa 添加文字";
-    textBtn.addEventListener("click", () => openTextEditor(index));
-    footer.appendChild(textBtn);
-    item.appendChild(footer);
-
-    photoCarousel.appendChild(item);
+    thumb.appendChild(img);
+    thumb.addEventListener("click", () => renderPhotoEditor(index));
+    editorThumbRow.appendChild(thumb);
   });
-
-  if (scrollToEnd) {
-    photoCarousel.scrollTo({ left: photoCarousel.scrollWidth, behavior: "smooth" });
-  }
 }
+
+btnRemoveCurrent.addEventListener("click", () => {
+  if (pendingPhotos.length === 0) return;
+  pendingPhotos.splice(activePhotoIndex, 1);
+  renderPhotoEditor();
+});
 
 // ---------- 添加方式菜单 ----------
 const addMenuModal = document.getElementById("add-menu-modal");
 let photoInputMode = "single"; // "single" | "multi" | "collage"
-
-btnAddPhoto.addEventListener("click", () => {
-  addMenuModal.hidden = false;
-});
 
 document.getElementById("add-menu-close").addEventListener("click", () => {
   addMenuModal.hidden = true;
@@ -422,7 +428,7 @@ photoInput.addEventListener("change", async () => {
     const composed = await renderPhotoOriginal(raw);
     pendingPhotos.push(composed);
   }
-  renderPhotoCarousel(true);
+  renderPhotoEditor(pendingPhotos.length - 1);
   photoInput.value = "";
 });
 
@@ -664,132 +670,8 @@ document.getElementById("collage-done").addEventListener("click", async () => {
 
   const collageResult = canvas.toDataURL("image/jpeg", 0.85);
   pendingPhotos.push(collageResult);
-  renderPhotoCarousel(true);
+  renderPhotoEditor(pendingPhotos.length - 1);
   collageEditorModal.hidden = true;
-});
-
-// ---------- 给照片加文字 ----------
-const textEditorModal = document.getElementById("text-editor-modal");
-const textEditorPreview = document.getElementById("text-editor-preview");
-const textEditorImage = document.getElementById("text-editor-image");
-const textEditorOverlayText = document.getElementById("text-editor-overlay-text");
-const textEditorInput = document.getElementById("text-editor-input");
-const textEditorSize = document.getElementById("text-editor-size");
-let textEditorIndex = null;
-let textPos = { x: 0.5, y: 0.9 }; // fraction of the preview box, drag target
-let textSizeFrac = 0.055; // font size as a fraction of the photo's width
-
-function openTextEditor(index) {
-  textEditorIndex = index;
-  textEditorImage.src = pendingPhotos[index];
-  textEditorInput.value = "";
-  textEditorOverlayText.textContent = "";
-  textPos = { x: 0.5, y: 0.9 };
-  textSizeFrac = 0.055;
-  textEditorSize.value = 55;
-  updateOverlayPosition();
-  updateOverlaySize();
-  textEditorModal.hidden = false;
-}
-
-function updateOverlayPosition() {
-  textEditorOverlayText.style.left = `${textPos.x * 100}%`;
-  textEditorOverlayText.style.top = `${textPos.y * 100}%`;
-}
-
-function updateOverlaySize() {
-  const px = Math.max(10, textEditorPreview.clientWidth * textSizeFrac);
-  textEditorOverlayText.style.fontSize = `${px}px`;
-}
-
-textEditorInput.addEventListener("input", () => {
-  textEditorOverlayText.textContent = textEditorInput.value;
-});
-
-textEditorSize.addEventListener("input", () => {
-  textSizeFrac = Number(textEditorSize.value) / 1000;
-  updateOverlaySize();
-});
-
-let draggingText = false;
-
-textEditorOverlayText.addEventListener("pointerdown", (event) => {
-  draggingText = true;
-  textEditorOverlayText.setPointerCapture(event.pointerId);
-});
-
-textEditorOverlayText.addEventListener("pointermove", (event) => {
-  if (!draggingText) return;
-  const rect = textEditorPreview.getBoundingClientRect();
-  const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
-  textPos = { x, y };
-  updateOverlayPosition();
-});
-
-textEditorOverlayText.addEventListener("pointerup", (event) => {
-  draggingText = false;
-  textEditorOverlayText.releasePointerCapture(event.pointerId);
-});
-
-document.getElementById("text-editor-cancel").addEventListener("click", () => {
-  textEditorModal.hidden = true;
-});
-
-function wrapTextLines(ctx, text, maxWidth) {
-  const lines = [];
-  text.split("\n").forEach((paragraph) => {
-    let line = "";
-    for (const ch of paragraph) {
-      const test = line + ch;
-      if (line && ctx.measureText(test).width > maxWidth) {
-        lines.push(line);
-        line = ch;
-      } else {
-        line = test;
-      }
-    }
-    lines.push(line);
-  });
-  return lines;
-}
-
-document.getElementById("text-editor-confirm").addEventListener("click", async () => {
-  const text = textEditorInput.value.trim();
-  textEditorModal.hidden = true;
-  if (!text) return;
-
-  const img = await loadImage(pendingPhotos[textEditorIndex]);
-  const canvas = document.createElement("canvas");
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(img, 0, 0);
-
-  const fontSize = Math.max(14, Math.round(img.width * textSizeFrac));
-  ctx.font = `700 ${fontSize}px -apple-system, "PingFang SC", sans-serif`;
-  ctx.textAlign = "center";
-  ctx.lineJoin = "round";
-
-  const maxWidth = img.width * 0.86;
-  const lines = wrapTextLines(ctx, text, maxWidth);
-  const lineHeight = fontSize * 1.3;
-  const centerX = textPos.x * img.width;
-  const centerY = textPos.y * img.height;
-  const startY = centerY - (lineHeight * (lines.length - 1)) / 2 + fontSize * 0.35;
-
-  lines.forEach((line, i) => {
-    const y = startY + i * lineHeight;
-    ctx.lineWidth = fontSize * 0.18;
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
-    ctx.strokeText(line, centerX, y);
-    ctx.fillStyle = "#fff";
-    ctx.fillText(line, centerX, y);
-  });
-
-  const withText = canvas.toDataURL("image/jpeg", 0.85);
-  pendingPhotos[textEditorIndex] = withText;
-  renderPhotoCarousel();
 });
 
 entryForm.addEventListener("submit", async (event) => {

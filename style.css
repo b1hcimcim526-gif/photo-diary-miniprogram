@@ -264,83 +264,89 @@ body {
   gap: 12px;
 }
 
-.photo-stage {
+.editor-preview-stage {
   position: relative;
-}
-
-.photo-carousel {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  gap: 12px;
-  border-radius: 14px;
-}
-
-.photo-item {
-  flex: 0 0 76%;
-  scroll-snap-align: start;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.photo-card {
   border-radius: 14px;
   overflow: hidden;
-  position: relative;
-  background: transparent;
-}
-
-.photo-card.blank {
-  flex: 0 0 76%;
-  scroll-snap-align: start;
-  aspect-ratio: 3 / 4;
   background: var(--card-bg);
   border: 1px solid var(--border);
 }
 
-.photo-card img {
+.editor-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+}
+
+.editor-preview img {
+  display: block;
   width: 100%;
-  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+}
+
+.editor-preview-empty {
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.editor-thumb-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px;
+}
+
+.editor-thumb,
+.editor-thumb-add {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+}
+
+.editor-thumb {
+  border: 2px solid transparent;
+  background: var(--card-bg);
+}
+
+.editor-thumb.active {
+  border-color: var(--accent);
+}
+
+.editor-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 
-.photo-card-footer {
+.editor-thumb-add {
+  border: 1px dashed var(--border);
+  background: var(--card-bg);
+  color: var(--accent-dark);
+  font-size: 22px;
+  line-height: 1;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 8px;
 }
 
-.photo-text-btn {
+.editor-thumb-add[hidden] {
+  display: none;
+}
+
+.editor-toolbar {
+  min-height: 56px;
+  border-radius: 14px;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 16px;
-  font-size: 13px;
-  color: var(--accent-dark);
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.fab-add {
-  position: absolute;
-  top: 50%;
-  right: -10px;
-  transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  font-size: 24px;
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-}
-
-.fab-add[hidden] {
-  display: none;
 }
 
 .photo-count-badge {
@@ -675,104 +681,8 @@ body {
   cursor: pointer;
 }
 
-/* 给照片加文字 */
-.text-editor-card {
-  width: 300px;
-}
-
-.text-editor-preview {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--card-bg);
-}
-
-.text-editor-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.text-editor-overlay {
-  position: absolute;
-  left: 50%;
-  top: 90%;
-  transform: translate(-50%, -50%);
-  max-width: 86%;
-  text-align: center;
-  color: #fff;
-  font-size: 18px;
-  font-weight: 700;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 8px rgba(0, 0, 0, 0.5);
-  white-space: pre-wrap;
-  word-break: break-word;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
-
-.text-editor-overlay:active {
-  cursor: grabbing;
-}
-
 .text-editor-hint {
   font-size: 11px;
   color: var(--muted);
   margin: -2px 0 0;
-}
-
-.text-editor-input {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--text);
-  background: var(--card-bg);
-  resize: none;
-}
-
-.text-editor-size-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.text-editor-size-row input[type="range"] {
-  flex: 1;
-}
-
-/* 缩放照片 */
-.zoom-editor-card {
-  width: 300px;
-}
-
-.zoom-editor-preview {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #fff;
-  border: 1px solid var(--border);
-}
-
-.zoom-editor-preview img {
-  position: absolute;
-  max-width: none;
-  max-height: none;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
-
-.zoom-editor-preview img:active {
-  cursor: grabbing;
 }

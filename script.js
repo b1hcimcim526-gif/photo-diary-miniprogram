@@ -14,32 +14,8 @@ const views = {
 const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
-const MAX_PHOTOS = 9; // per group
-const MAX_GROUPS = 3;
-const GROUP_SEP = "__PLOG_GROUP_SEP__"; // marks a group boundary inside the flat "photos" column
+const MAX_PHOTOS = 18;
 const CANVAS_RATIOS = [1 / 1, 3 / 4, 4 / 3, 9 / 16, 16 / 9];
-
-function decodeGroups(flatPhotos) {
-  const groups = [[], [], []];
-  let groupIndex = 0;
-  (flatPhotos || []).forEach((item) => {
-    if (item === GROUP_SEP) {
-      groupIndex += 1;
-      return;
-    }
-    if (groupIndex < MAX_GROUPS) groups[groupIndex].push(item);
-  });
-  return groups;
-}
-
-function encodeGroups(groups) {
-  const flat = [];
-  groups.forEach((group, index) => {
-    if (index > 0) flat.push(GROUP_SEP);
-    flat.push(...group);
-  });
-  return flat;
-}
 
 function pickBestCanvasRatio(imgRatio) {
   let best = CANVAS_RATIOS[0];
@@ -54,15 +30,13 @@ function pickBestCanvasRatio(imgRatio) {
   return best;
 }
 
-let pendingGroups = [[], [], []]; // a day's 3 independent groups of up to MAX_PHOTOS each
-let activeGroupIndex = 0;
-let pendingPhotos = pendingGroups[activeGroupIndex]; // alias to the currently active group's array
+let pendingPhotos = [];
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
 let currentMonthKey = null;
 let currentMonthLongImage = null;
 let calendarReturnView = "record";
-let entriesCache = {}; // "YYYY-MM-DD" -> { groups: [[...],[...],[...]], photos: flat concat of groups }, mirrors the Supabase "entries" table
+let entriesCache = {}; // "YYYY-MM-DD" -> { photos: [dataURL,...] }, mirrors the Supabase "entries" table
 
 function todayStr() {
   return formatISO(new Date());
@@ -88,22 +62,20 @@ async function refreshEntriesCache() {
   }
   const map = {};
   (data || []).forEach((row) => {
-    const groups = decodeGroups(row.photos || []);
-    map[row.date] = { groups, photos: groups.flat() };
+    map[row.date] = { photos: row.photos || [] };
   });
   entriesCache = map;
 }
 
-async function upsertEntryRemote(dateStr, groups) {
+async function upsertEntryRemote(dateStr, photos) {
   const {
     data: { user },
   } = await supabaseClient.auth.getUser();
-  const photos = encodeGroups(groups);
   const { error } = await supabaseClient
     .from("entries")
     .upsert({ user_id: user.id, date: dateStr, photos }, { onConflict: "user_id,date" });
   if (error) throw error;
-  entriesCache[dateStr] = { groups, photos: groups.flat() };
+  entriesCache[dateStr] = { photos };
 }
 
 async function deleteEntryRemote(dateStr) {
@@ -298,7 +270,6 @@ const editorPreviewImg = document.getElementById("editor-preview-img");
 const editorPreviewEmpty = document.getElementById("editor-preview-empty");
 const editorThumbRow = document.getElementById("editor-thumb-row");
 const btnRemoveCurrent = document.getElementById("btn-remove-current");
-const groupTabs = document.getElementById("group-tabs");
 
 function formatFullDateLabel(dateStr) {
   const [y, m, d] = dateStr.split("-");
@@ -315,29 +286,9 @@ function openRecordEditor(dateStr) {
 function loadRecordForm(dateStr) {
   const entries = loadEntries();
   const entry = entries[dateStr];
-  pendingGroups = entry ? entry.groups.map((g) => [...g]) : [[], [], []];
-  activeGroupIndex = 0;
-  pendingPhotos = pendingGroups[activeGroupIndex];
+  pendingPhotos = entry ? [...entry.photos] : [];
   activePhotoIndex = 0;
   renderPhotoEditor();
-}
-
-function renderGroupTabs() {
-  groupTabs.innerHTML = "";
-  for (let i = 0; i < MAX_GROUPS; i++) {
-    const count = pendingGroups[i].length;
-    const tab = document.createElement("button");
-    tab.type = "button";
-    tab.className = "group-tab" + (i === activeGroupIndex ? " active" : "");
-    tab.textContent = count > 0 ? `组${i + 1} · ${count}` : `组${i + 1}`;
-    tab.addEventListener("click", () => {
-      activeGroupIndex = i;
-      pendingPhotos = pendingGroups[activeGroupIndex];
-      activePhotoIndex = 0;
-      renderPhotoEditor();
-    });
-    groupTabs.appendChild(tab);
-  }
 }
 
 function openCalendarFromRecord(returnView) {
@@ -402,8 +353,6 @@ function renderPhotoEditor(selectIndex) {
     thumb.addEventListener("click", () => renderPhotoEditor(index));
     editorThumbRow.appendChild(thumb);
   });
-
-  renderGroupTabs();
 }
 
 btnRemoveCurrent.addEventListener("click", () => {
@@ -743,13 +692,11 @@ document.getElementById("collage-done").addEventListener("click", async () => {
 entryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const totalPhotos = pendingGroups.reduce((sum, group) => sum + group.length, 0);
-
   try {
-    if (totalPhotos === 0) {
+    if (pendingPhotos.length === 0) {
       await deleteEntryRemote(currentRecordDate);
     } else {
-      await upsertEntryRemote(currentRecordDate, pendingGroups.map((group) => [...group]));
+      await upsertEntryRemote(currentRecordDate, [...pendingPhotos]);
     }
   } catch (err) {
     alert("保存失败：" + (err.message || "网络或云端存储出错，请重试"));

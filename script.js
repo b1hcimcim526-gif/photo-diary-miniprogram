@@ -14,7 +14,7 @@ const views = {
 const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
-const MAX_PHOTOS = 18;
+const MAX_PHOTOS = 9;
 const CANVAS_RATIOS = [1 / 1, 3 / 4, 4 / 3, 9 / 16, 16 / 9];
 
 function pickBestCanvasRatio(imgRatio) {

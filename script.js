@@ -22,6 +22,7 @@ const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
 const MAX_PHOTOS = 27; // 3 grids of 9 in the feed
+const MAX_MULTI_SELECT = 9; // per "添加多张" batch, keeps a single wait short
 const CANVAS_RATIOS = [1 / 1, 3 / 4, 4 / 3, 9 / 16, 16 / 9];
 
 function pickBestCanvasRatio(imgRatio) {
@@ -502,10 +503,14 @@ photoInput.addEventListener("change", async () => {
     return;
   }
 
-  const toAdd = files.slice(0, MAX_PHOTOS - pendingPhotos.length);
+  const batchCap = Math.min(MAX_MULTI_SELECT, MAX_PHOTOS - pendingPhotos.length);
+  const toAdd = files.slice(0, batchCap);
   if (toAdd.length === 0) {
     photoInput.value = "";
     return;
+  }
+  if (files.length > toAdd.length) {
+    alert(`一次最多添加 ${toAdd.length} 张，已为你添加前 ${toAdd.length} 张，其余请再选一次`);
   }
   photoCountBadge.hidden = false;
   photoCountBadge.textContent = "处理中…";

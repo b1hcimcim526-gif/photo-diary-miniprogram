@@ -2,6 +2,13 @@ const SUPABASE_URL = "https://jmllhgkfzbrlelqqrvth.supabase.co";
 const SUPABASE_KEY = "sb_publishable_RYl5n4MQm3OP3MRFdgbHrQ_TZmQHFx6";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const PHOTO_BUCKET = "photo";
+const SIGNED_URL_TTL = 60 * 60 * 24; // 24h, refreshed on every login/reload
+
+function isDataUrl(value) {
+  return typeof value === "string" && value.startsWith("data:");
+}
+
 const views = {
   auth: document.getElementById("view-auth"),
   record: document.getElementById("view-record"),
@@ -30,13 +37,14 @@ function pickBestCanvasRatio(imgRatio) {
   return best;
 }
 
-let pendingPhotos = [];
+let pendingPhotos = []; // display src for each photo (signed URL for existing, dataURL for newly added)
+let pendingPhotoPaths = []; // parallel to pendingPhotos: storage path if already uploaded, else null
 let calendarMonth = new Date(); // first-of-month cursor
 calendarMonth.setDate(1);
 let currentMonthKey = null;
 let currentMonthLongImage = null;
 let calendarReturnView = "record";
-let entriesCache = {}; // "YYYY-MM-DD" -> { photos: [dataURL,...] }, mirrors the Supabase "entries" table
+let entriesCache = {}; // "YYYY-MM-DD" -> { paths: [storagePath|dataURL,...], photos: [displaySrc,...] }, mirrors the Supabase "entries" table
 
 function todayStr() {
   return formatISO(new Date());
@@ -53,6 +61,21 @@ function loadEntries() {
   return entriesCache;
 }
 
+async function resolveSignedUrls(paths) {
+  const toSign = [...new Set(paths.filter((p) => !isDataUrl(p)))];
+  if (toSign.length === 0) return {};
+  const { data, error } = await supabaseClient.storage.from(PHOTO_BUCKET).createSignedUrls(toSign, SIGNED_URL_TTL);
+  if (error) {
+    console.error(error);
+    return {};
+  }
+  const map = {};
+  (data || []).forEach((item) => {
+    if (item.signedUrl) map[item.path] = item.signedUrl;
+  });
+  return map;
+}
+
 async function refreshEntriesCache() {
   const { data, error } = await supabaseClient.from("entries").select("date, photos");
   if (error) {
@@ -60,27 +83,67 @@ async function refreshEntriesCache() {
     entriesCache = {};
     return;
   }
+  const rows = data || [];
+  const allPaths = [];
+  rows.forEach((row) => allPaths.push(...(row.photos || [])));
+  const urlMap = await resolveSignedUrls(allPaths);
+
   const map = {};
-  (data || []).forEach((row) => {
-    map[row.date] = { photos: row.photos || [] };
+  rows.forEach((row) => {
+    const paths = row.photos || [];
+    map[row.date] = {
+      paths,
+      photos: paths.map((p) => (isDataUrl(p) ? p : urlMap[p] || p)),
+    };
   });
   entriesCache = map;
 }
 
-async function upsertEntryRemote(dateStr, photos) {
+async function upsertEntryRemote(dateStr, displaySrcs, paths) {
   const {
     data: { user },
   } = await supabaseClient.auth.getUser();
+
+  const finalPaths = [];
+  for (let i = 0; i < displaySrcs.length; i++) {
+    if (paths[i]) {
+      finalPaths.push(paths[i]);
+      continue;
+    }
+    const blob = await (await fetch(displaySrcs[i])).blob();
+    const path = `${user.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const { error: uploadError } = await supabaseClient.storage
+      .from(PHOTO_BUCKET)
+      .upload(path, blob, { contentType: "image/jpeg" });
+    if (uploadError) throw uploadError;
+    finalPaths.push(path);
+  }
+
+  const previousPaths = (entriesCache[dateStr] && entriesCache[dateStr].paths) || [];
+  const removedPaths = previousPaths.filter((p) => !isDataUrl(p) && !finalPaths.includes(p));
+  if (removedPaths.length > 0) {
+    await supabaseClient.storage.from(PHOTO_BUCKET).remove(removedPaths);
+  }
+
   const { error } = await supabaseClient
     .from("entries")
-    .upsert({ user_id: user.id, date: dateStr, photos }, { onConflict: "user_id,date" });
+    .upsert({ user_id: user.id, date: dateStr, photos: finalPaths }, { onConflict: "user_id,date" });
   if (error) throw error;
-  entriesCache[dateStr] = { photos };
+
+  const urlMap = await resolveSignedUrls(finalPaths);
+  entriesCache[dateStr] = {
+    paths: finalPaths,
+    photos: finalPaths.map((p) => urlMap[p] || p),
+  };
 }
 
 async function deleteEntryRemote(dateStr) {
+  const previousPaths = ((entriesCache[dateStr] && entriesCache[dateStr].paths) || []).filter((p) => !isDataUrl(p));
   const { error } = await supabaseClient.from("entries").delete().eq("date", dateStr);
   if (error) throw error;
+  if (previousPaths.length > 0) {
+    await supabaseClient.storage.from(PHOTO_BUCKET).remove(previousPaths);
+  }
   delete entriesCache[dateStr];
 }
 
@@ -295,6 +358,7 @@ function loadRecordForm(dateStr) {
   const entries = loadEntries();
   const entry = entries[dateStr];
   pendingPhotos = entry ? [...entry.photos] : [];
+  pendingPhotoPaths = entry ? entry.paths.map((p) => (isDataUrl(p) ? null : p)) : [];
   activePhotoIndex = 0;
   renderPhotoEditor();
 }
@@ -366,6 +430,7 @@ function renderPhotoEditor(selectIndex) {
 btnRemoveCurrent.addEventListener("click", () => {
   if (pendingPhotos.length === 0) return;
   pendingPhotos.splice(activePhotoIndex, 1);
+  pendingPhotoPaths.splice(activePhotoIndex, 1);
   renderPhotoEditor();
 });
 
@@ -447,6 +512,7 @@ photoInput.addEventListener("change", async () => {
     const raw = await readFileAsDataUrl(file);
     const composed = await renderPhotoOriginal(raw);
     pendingPhotos.push(composed);
+    pendingPhotoPaths.push(null);
   }
   renderPhotoEditor(pendingPhotos.length - 1);
   photoInput.value = "";
@@ -460,7 +526,7 @@ function readFileAsDataUrl(file) {
   });
 }
 
-const MAX_PHOTO_EDGE = 1600; // cap long edge so a day's worth of photos stays a reasonable upload size
+const MAX_PHOTO_EDGE = 2400; // now that photos live in Storage (not a DB row), we can afford more resolution
 
 async function renderPhotoOriginal(srcDataUrl) {
   const img = await loadImage(srcDataUrl);
@@ -486,7 +552,7 @@ async function renderPhotoOriginal(srcDataUrl) {
   const sx = (img.width - cropW) / 2;
   const sy = (img.height - cropH) / 2;
   ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, outW, outH);
-  return canvas.toDataURL("image/jpeg", 0.85);
+  return canvas.toDataURL("image/jpeg", 0.92);
 }
 
 // ---------- 拼图模板 ----------
@@ -665,7 +731,7 @@ document.getElementById("collage-done").addEventListener("click", async () => {
     return;
   }
 
-  const canvasSize = 640;
+  const canvasSize = 960;
   const canvas = document.createElement("canvas");
   canvas.width = canvasSize;
   canvas.height = canvasSize;
@@ -691,8 +757,9 @@ document.getElementById("collage-done").addEventListener("click", async () => {
     );
   }
 
-  const collageResult = canvas.toDataURL("image/jpeg", 0.85);
+  const collageResult = canvas.toDataURL("image/jpeg", 0.9);
   pendingPhotos.push(collageResult);
+  pendingPhotoPaths.push(null);
   renderPhotoEditor(pendingPhotos.length - 1);
   collageEditorModal.hidden = true;
 });
@@ -704,7 +771,7 @@ entryForm.addEventListener("submit", async (event) => {
     if (pendingPhotos.length === 0) {
       await deleteEntryRemote(currentRecordDate);
     } else {
-      await upsertEntryRemote(currentRecordDate, [...pendingPhotos]);
+      await upsertEntryRemote(currentRecordDate, [...pendingPhotos], [...pendingPhotoPaths]);
     }
   } catch (err) {
     alert("保存失败：" + (err.message || "网络或云端存储出错，请重试"));
@@ -877,6 +944,7 @@ document.getElementById("btn-back-to-record").addEventListener("click", () => {
 function loadImage(src) {
   return new Promise((resolve) => {
     const img = new Image();
+    if (!isDataUrl(src)) img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.src = src;
   });

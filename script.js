@@ -786,7 +786,8 @@ entryForm.addEventListener("submit", async (event) => {
 const notebookGrid = document.getElementById("notebook-grid");
 const galleryEmpty = document.getElementById("gallery-empty");
 const monthDetailTitle = document.getElementById("month-detail-title");
-const monthDetailImage = document.getElementById("month-detail-image");
+const monthDetailList = document.getElementById("month-detail-list");
+let currentMonthPhotos = [];
 
 function formatMonthLabel(monthKey) {
   const [y, m] = monthKey.split("-");
@@ -813,7 +814,7 @@ function buildMonthMap() {
 
 async function buildLongImage(photoSrcs) {
   const images = await Promise.all(photoSrcs.map(loadImage));
-  const cellSize = 360;
+  const cellSize = 720;
   const canvas = document.createElement("canvas");
   canvas.width = cellSize;
   canvas.height = cellSize * images.length;
@@ -866,14 +867,19 @@ function renderNotebookGrid() {
   });
 }
 
-async function openMonthDetail(monthKey, photos) {
+function openMonthDetail(monthKey, photos) {
   currentMonthKey = monthKey;
-  currentMonthLongImage = null;
+  currentMonthPhotos = photos;
+  currentMonthLongImage = null; // export image is generated on demand, not up front
   monthDetailTitle.textContent = formatMonthLabel(monthKey);
-  monthDetailImage.removeAttribute("src");
+  monthDetailList.innerHTML = "";
+  photos.forEach((src) => {
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.src = src;
+    monthDetailList.appendChild(img);
+  });
   showView("diary-month");
-  currentMonthLongImage = await buildLongImage(photos);
-  monthDetailImage.src = currentMonthLongImage;
 }
 
 document.getElementById("btn-back-to-notebooks").addEventListener("click", () => {
@@ -966,9 +972,21 @@ function downloadDataUrl(dataUrl, filename) {
   a.click();
 }
 
-document.getElementById("btn-export-month").addEventListener("click", () => {
-  if (!currentMonthLongImage || !currentMonthKey) return;
-  downloadDataUrl(currentMonthLongImage, `plog-${currentMonthKey}.png`);
+const btnExportMonth = document.getElementById("btn-export-month");
+btnExportMonth.addEventListener("click", async () => {
+  if (!currentMonthKey || currentMonthPhotos.length === 0) return;
+  const originalLabel = btnExportMonth.textContent;
+  btnExportMonth.textContent = "生成中…";
+  btnExportMonth.disabled = true;
+  try {
+    if (!currentMonthLongImage) {
+      currentMonthLongImage = await buildLongImage(currentMonthPhotos);
+    }
+    downloadDataUrl(currentMonthLongImage, `plog-${currentMonthKey}.png`);
+  } finally {
+    btnExportMonth.textContent = originalLabel;
+    btnExportMonth.disabled = false;
+  }
 });
 
 // ---------- 初始化 / 登录状态 ----------

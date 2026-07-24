@@ -282,8 +282,7 @@ body {
   position: relative;
   border-radius: 14px;
   overflow: hidden;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
+  background: var(--bg);
 }
 
 .editor-preview {
@@ -470,7 +469,7 @@ body {
 .month-detail-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   border-radius: 10px;
   overflow: hidden;
 }

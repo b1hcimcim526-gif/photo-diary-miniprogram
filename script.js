@@ -14,7 +14,7 @@ const views = {
 const bottomNav = document.getElementById("bottom-nav");
 const navItems = document.querySelectorAll(".nav-item");
 
-const MAX_PHOTOS = 9;
+const MAX_PHOTOS = 27; // 3 grids of 9 in the feed
 const CANVAS_RATIOS = [1 / 1, 3 / 4, 4 / 3, 9 / 16, 16 / 9];
 
 function pickBestCanvasRatio(imgRatio) {
@@ -221,25 +221,33 @@ function buildFeedRow(dateStr, entry) {
   content.className = "feed-content";
 
   if (entry) {
-    const grid = document.createElement("div");
-    grid.className = "feed-grid";
-    const visible = entry.photos.slice(0, 9);
-    const hiddenCount = entry.photos.length - visible.length;
-    visible.forEach((src, index) => {
-      const cell = document.createElement("div");
-      cell.className = "feed-grid-cell";
-      const img = document.createElement("img");
-      img.src = src;
-      cell.appendChild(img);
-      if (index === visible.length - 1 && hiddenCount > 0) {
-        const more = document.createElement("span");
-        more.className = "feed-grid-more";
-        more.textContent = `+${hiddenCount}`;
-        cell.appendChild(more);
-      }
-      grid.appendChild(cell);
-    });
-    content.appendChild(grid);
+    const photos = entry.photos;
+    const gridCount = Math.ceil(photos.length / 9);
+    for (let g = 0; g < gridCount; g++) {
+      const grid = document.createElement("div");
+      grid.className = "feed-grid";
+      photos.slice(g * 9, g * 9 + 9).forEach((src) => {
+        const cell = document.createElement("div");
+        cell.className = "feed-grid-cell";
+        const img = document.createElement("img");
+        img.src = src;
+        cell.appendChild(img);
+        grid.appendChild(cell);
+      });
+      content.appendChild(grid);
+    }
+    if (photos.length < MAX_PHOTOS) {
+      const addMoreBtn = document.createElement("button");
+      addMoreBtn.type = "button";
+      addMoreBtn.className = "feed-grid-add-btn";
+      addMoreBtn.textContent = "+";
+      addMoreBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openRecordEditor(dateStr);
+        addMenuModal.hidden = false;
+      });
+      content.appendChild(addMoreBtn);
+    }
   } else {
     const placeholder = document.createElement("div");
     placeholder.className = "feed-add-placeholder";

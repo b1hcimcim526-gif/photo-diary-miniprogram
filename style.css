@@ -196,15 +196,23 @@ body {
 .feed-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 2px;
 }
 
 .feed-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
-  max-width: 220px;
+  width: 190px;
+  flex: 0 0 190px;
   border-radius: 8px;
   overflow: hidden;
+  scroll-snap-align: start;
 }
 
 .feed-grid-cell {
@@ -219,16 +227,22 @@ body {
   display: block;
 }
 
-.feed-grid-more {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+.feed-grid-add-btn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
   color: #fff;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 22px;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  scroll-snap-align: start;
 }
 
 .feed-add-placeholder {

@@ -104,20 +104,18 @@ async function upsertEntryRemote(dateStr, displaySrcs, paths) {
     data: { user },
   } = await supabaseClient.auth.getUser();
 
-  const finalPaths = [];
-  for (let i = 0; i < displaySrcs.length; i++) {
-    if (paths[i]) {
-      finalPaths.push(paths[i]);
-      continue;
-    }
-    const blob = await (await fetch(displaySrcs[i])).blob();
-    const path = `${user.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-    const { error: uploadError } = await supabaseClient.storage
-      .from(PHOTO_BUCKET)
-      .upload(path, blob, { contentType: "image/jpeg" });
-    if (uploadError) throw uploadError;
-    finalPaths.push(path);
-  }
+  const finalPaths = await Promise.all(
+    displaySrcs.map(async (src, i) => {
+      if (paths[i]) return paths[i];
+      const blob = await (await fetch(src)).blob();
+      const path = `${user.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      const { error: uploadError } = await supabaseClient.storage
+        .from(PHOTO_BUCKET)
+        .upload(path, blob, { contentType: "image/jpeg" });
+      if (uploadError) throw uploadError;
+      return path;
+    })
+  );
 
   const previousPaths = (entriesCache[dateStr] && entriesCache[dateStr].paths) || [];
   const removedPaths = previousPaths.filter((p) => !isDataUrl(p) && !finalPaths.includes(p));
@@ -335,6 +333,7 @@ let currentRecordDate = todayStr();
 let activePhotoIndex = 0;
 const photoInput = document.getElementById("photo-input");
 const entryForm = document.getElementById("entry-form");
+const btnSaveEntry = document.getElementById("btn-save-entry");
 const photoCountBadge = document.getElementById("photo-count-badge");
 const recordDateLabel = document.getElementById("record-date-label");
 const editorPreviewImg = document.getElementById("editor-preview-img");
@@ -508,11 +507,18 @@ photoInput.addEventListener("change", async () => {
     photoInput.value = "";
     return;
   }
-  for (const file of toAdd) {
-    const raw = await readFileAsDataUrl(file);
-    const composed = await renderPhotoOriginal(raw);
-    pendingPhotos.push(composed);
-    pendingPhotoPaths.push(null);
+  photoCountBadge.hidden = false;
+  photoCountBadge.textContent = "处理中…";
+  btnSaveEntry.disabled = true;
+  try {
+    for (const file of toAdd) {
+      const raw = await readFileAsDataUrl(file);
+      const composed = await renderPhotoOriginal(raw);
+      pendingPhotos.push(composed);
+      pendingPhotoPaths.push(null);
+    }
+  } finally {
+    btnSaveEntry.disabled = false;
   }
   renderPhotoEditor(pendingPhotos.length - 1);
   photoInput.value = "";
@@ -767,6 +773,8 @@ document.getElementById("collage-done").addEventListener("click", async () => {
 entryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
+  btnSaveEntry.disabled = true;
+  btnSaveEntry.textContent = "保存中…";
   try {
     if (pendingPhotos.length === 0) {
       await deleteEntryRemote(currentRecordDate);
@@ -776,6 +784,9 @@ entryForm.addEventListener("submit", async (event) => {
   } catch (err) {
     alert("保存失败：" + (err.message || "网络或云端存储出错，请重试"));
     return;
+  } finally {
+    btnSaveEntry.disabled = false;
+    btnSaveEntry.textContent = "保存";
   }
 
   renderRecordFeed();
